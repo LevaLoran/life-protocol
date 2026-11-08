@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08090b">
+  <meta name="description" content="LIFE PROTOCOL — real life RPG">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <title>LIFE PROTOCOL</title>
+  <style>
+    :root{--bg:#08090b;--panel:#111419;--panel2:#151a20;--line:#252d34;--text:#e6e8ea;--muted:#7b858e;--accent:#00f0c8;--red:#d65b64;--yellow:#e5c46b;--radius:13px}
+    *{box-sizing:border-box}html{background:var(--bg);scroll-behavior:smooth}body{margin:0;background:radial-gradient(ellipse at 80% -20%,#10231f 0,transparent 40%),var(--bg);color:var(--text);font:14px/1.45 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh}
+    button,input,select,textarea{font:inherit}button{cursor:pointer}.app{max-width:760px;margin:auto;min-height:100vh;padding:0 15px 100px}
+    header{position:sticky;top:0;z-index:5;background:#08090beF;backdrop-filter:blur(16px);border-bottom:1px solid var(--line);margin:0 -15px;padding:13px 16px 11px;display:flex;align-items:center;justify-content:space-between}
+    .brand{font-weight:850;letter-spacing:.13em;font-size:13px}.brand span{color:var(--accent)}.status{font-size:10px;color:var(--accent);letter-spacing:.14em}.topright{display:flex;align-items:center;gap:9px}
+    .iconbtn{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:9px;padding:8px 10px}
+    .screen{display:none;padding-top:19px}.screen.active{display:block}.eyebrow{font-size:10px;letter-spacing:.17em;color:var(--accent);font-weight:800;text-transform:uppercase}.heading{font-size:24px;font-weight:850;letter-spacing:-.04em;margin:4px 0 15px}.sub{color:var(--muted);font-size:12px}
+    .panel{background:linear-gradient(145deg,#14191f,#0e1115);border:1px solid var(--line);border-radius:var(--radius);padding:15px;margin:12px 0;box-shadow:0 10px 30px #0002}.row{display:flex;align-items:center;justify-content:space-between;gap:12px}.row.start{align-items:flex-start}.muted{color:var(--muted)}.tiny{font-size:10px;letter-spacing:.1em}.big{font-size:27px;font-weight:850;letter-spacing:-.05em}.accent{color:var(--accent)}.divider{height:1px;background:var(--line);margin:13px 0}
+    .rankcard{position:relative;overflow:hidden;display:flex;align-items:center;gap:15px;padding:17px}.rankcard:after{content:"";position:absolute;width:170px;height:170px;border:1px solid #00f0c81c;transform:rotate(45deg);right:-90px;top:-80px}
+    .crest{width:66px;height:66px;flex:none;display:grid;place-items:center;border:1px solid #00f0c866;background:#00f0c80b;clip-path:polygon(50% 0,91% 18%,84% 75%,50% 100%,16% 75%,9% 18%);color:var(--accent);font-size:25px;font-weight:900}
+    .progress{height:6px;border-radius:8px;background:#273038;overflow:hidden;margin-top:8px}.progress i{display:block;height:100%;background:var(--accent);box-shadow:0 0 12px #00f0c877;border-radius:8px}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{padding:12px 10px;background:#0c1014;border:1px solid var(--line);border-radius:10px}.stat .big{font-size:21px}.stat .tiny{color:var(--muted)}
+    .sectiontitle{font-size:12px;letter-spacing:.13em;font-weight:800;margin:20px 0 9px;display:flex;justify-content:space-between;align-items:center}
+    .mission{display:flex;align-items:center;gap:11px;padding:12px 0;border-bottom:1px solid #222a30}.mission:last-child{border:0;padding-bottom:0}.check{width:24px;height:24px;border:1px solid #52616b;border-radius:7px;background:transparent;color:var(--accent);flex:none}.check.done{background:#00f0c81c;border-color:var(--accent)}.missiontitle{font-weight:650}.missionmeta{font-size:10px;color:var(--muted);margin-top:3px}.xp{margin-left:auto;color:var(--accent);font-size:11px;font-weight:800;white-space:nowrap}
+    .btn{border:1px solid var(--accent);background:var(--accent);color:#06110f;padding:10px 13px;border-radius:9px;font-weight:800;font-size:12px}.btn.secondary{background:transparent;color:var(--accent)}.btn.ghost{border-color:var(--line);background:var(--panel2);color:var(--text)}.btn.small{padding:7px 9px;font-size:11px}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px}.activity{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}.cell{aspect-ratio:1;border-radius:4px;background:#1b2228;border:1px solid #283039}.cell[data-level="1"]{background:#075b4d}.cell[data-level="2"]{background:#078b72}.cell[data-level="3"]{background:#00c49f}.cell[data-level="4"]{background:#70ffe1}
+    .nav{position:fixed;z-index:10;bottom:0;left:0;right:0;background:#090c0ff2;backdrop-filter:blur(18px);border-top:1px solid var(--line);padding:8px max(8px,env(safe-area-inset-left)) calc(8px + env(safe-area-inset-bottom));display:grid;grid-template-columns:repeat(5,1fr);max-width:760px;margin:auto}
+    .nav button{background:none;border:0;color:#77828b;font-size:9px;display:flex;flex-direction:column;align-items:center;gap:4px;padding:5px 0}.nav button b{font-size:18px;font-weight:500}.nav button.active{color:var(--accent)}
+    .field{width:100%;background:#090d11;border:1px solid var(--line);color:var(--text);padding:11px;border-radius:9px;outline:none}.field:focus{border-color:var(--accent)}label{display:block;font-size:11px;color:var(--muted);margin:10px 0 5px}.modalback{position:fixed;inset:0;background:#000b;z-index:20;display:none;align-items:flex-end;justify-content:center}.modalback.show{display:flex}.modal{width:min(100%,560px);background:#10151a;border:1px solid var(--line);border-radius:18px 18px 0 0;padding:19px 17px calc(20px + env(safe-area-inset-bottom));max-height:90vh;overflow:auto}.modal h3{margin:0 0 12px}.tag{font-size:9px;letter-spacing:.1em;border:1px solid var(--line);padding:4px 7px;border-radius:6px;color:var(--muted)}
+    .skill{padding:12px;background:#0c1014;border:1px solid var(--line);border-radius:10px;margin:8px 0}.skill .progress{margin-top:9px}.medal{padding:12px;background:#0c1014;border:1px solid var(--line);border-radius:10px;min-height:105px}.medal.locked{opacity:.42;filter:grayscale(1)}.medalicon{font-size:22px;color:var(--yellow)}.empty{padding:24px;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px}
+    .toast{position:fixed;top:65px;left:50%;transform:translateX(-50%);z-index:30;background:#10211e;border:1px solid #00f0c866;color:var(--accent);padding:10px 14px;border-radius:9px;display:none;font-size:12px}
+    @media(min-width:600px){.app{padding-left:22px;padding-right:22px}header{margin-left:-22px;margin-right:-22px;padding-left:22px;padding-right:22px}.modalback{align-items:center}.modal{border-radius:16px}}
+    @media(prefers-reduced-motion:no-preference){.btn,.panel,.cell{transition:all .18s ease}.btn:active{transform:scale(.97)}.check.done{animation:pop .2s ease}@keyframes pop{50%{transform:scale(1.13)}}}
+  </style>
+</head>
+<body>
+<div class="app">
+  <header><div><div class="brand">LIFE <span>PROTOCOL</span></div><div class="status">● SYSTEM ONLINE</div></div><div class="topright"><span id="dateTop" class="tiny muted"></span><button class="iconbtn" onclick="openSettings()" aria-label="Настройки">⚙</button></div></header>
+
+  <main>
+    <section id="dashboard" class="screen active">
+      <div class="eyebrow">Operator terminal / 01</div><div class="heading">Оперативная сводка</div>
+      <div class="panel rankcard"><div class="crest" id="rankCrest">Ⅰ</div><div style="min-width:0;flex:1"><div class="tiny muted">CURRENT RANK</div><div class="row"><strong id="rankName" style="font-size:19px">RECRUIT</strong><span class="tag" id="rankLevel">LVL 01</span></div><div class="row" style="margin-top:5px"><span class="tiny muted" id="xpText">0 / 100 XP</span><span class="tiny accent" id="xpPercent">0%</span></div><div class="progress"><i id="rankBar" style="width:0%"></i></div></div></div>
+      <div class="stats"><div class="stat"><div class="tiny">TOTAL XP</div><div class="big accent" id="totalXp">0</div></div><div class="stat"><div class="tiny">MISSIONS</div><div class="big" id="totalDone">0</div></div><div class="stat"><div class="tiny">STREAK</div><div class="big" id="streak">0 <small style="font-size:11px">D</small></div></div></div>
+      <div class="sectiontitle"><span>DAILY BRIEFING</span><span class="tag" id="briefDate">TODAY</span></div>
+      <div class="panel"><div class="row"><strong class="accent">◈ COMMANDER AI</strong><span class="tag">LOCAL MODE</span></div><p id="briefing" class="sub" style="line-height:1.7;margin-bottom:0">Система готова. Выполни первую миссию, чтобы начать протокол.</p><div style="margin-top:12px"><button class="btn secondary small" onclick="generateBriefing()">REFRESH BRIEFING ↗</button></div></div>
+      <div class="sectiontitle"><span>ACTIVE MISSIONS</span><span class="muted tiny" id="missionCount">0 / 10</span></div>
+      <div class="panel" id="dashMissions"></div>
+      <div class="row"><button class="btn secondary" onclick="showScreen('missions')">ALL MISSIONS ↗</button><button class="btn ghost" onclick="openMission()">＋ NEW MISSION</button></div>
+      <div class="sectiontitle"><span>ACTIVITY / LAST 7 DAYS</span><span class="muted tiny">XP LOG</span></div>
+      <div class="panel"><div class="activity" id="weekGraph"></div><div class="row muted tiny" style="margin-top:9px"><span>LESS</span><span>MORE ▪ ▪ ▪ ▪</span></div></div>
+    </section>
+
+    <section id="missions" class="screen">
+      <div class="eyebrow">Operations / 02</div><div class="heading">Миссии</div>
+      <div class="row"><span class="sub" id="missionSummary">Ежедневные задания</span><button class="btn small" onclick="openMission()">＋ ADD</button></div>
+      <div class="panel"><div class="row"><strong>DAILY OPERATIONS</strong><span class="tag" id="missionLimit">0 / 10</span></div><div id="allMissions"></div></div>
+      <div class="panel"><div class="row"><strong>AI MISSION GENERATOR</strong><span class="tag">LOCAL FALLBACK</span></div><p class="sub">Предложения на основе категорий и простых шаблонов. Для настоящей генерации подключи AI API через защищённый сервер.</p><button class="btn secondary small" onclick="suggestMissions()">GENERATE MISSIONS ↗</button><div id="suggestions"></div></div>
+    </section>
+
+    <section id="ranks" class="screen">
+      <div class="eyebrow">Progression / 03</div><div class="heading">Ранг оператора</div>
+      <div class="panel rankcard"><div class="crest" id="rankCrest2">Ⅰ</div><div style="flex:1"><div class="tiny muted">CURRENT DESIGNATION</div><strong id="rankName2" style="font-size:20px">RECRUIT</strong><div class="sub" id="rankDesc">Начало протокола</div></div></div>
+      <div class="sectiontitle">RANK PROGRESSION</div><div id="rankList"></div>
+    </section>
+
+    <section id="skills" class="screen">
+      <div class="eyebrow">Character development / 04</div><div class="heading">Дерево навыков</div>
+      <p class="sub">Навыки развиваются отдельно от общего XP. Выполняй миссии соответствующих направлений.</p><div id="skillList"></div>
+    </section>
+
+    <section id="achievements" class="screen">
+      <div class="eyebrow">Awards archive / 05</div><div class="heading">Награды</div><div class="stats" style="margin-bottom:13px"><div class="stat"><div class="tiny">UNLOCKED</div><div class="big accent" id="medalsDone">0</div></div><div class="stat"><div class="tiny">AVAILABLE</div><div class="big" id="medalsTotal">7</div></div><div class="stat"><div class="tiny">COMPLETION</div><div class="big" id="medalsPct">0%</div></div></div><div class="grid2" id="medalGrid"></div>
+    </section>
+
+    <section id="stats" class="screen">
+      <div class="eyebrow">Analytics / 06</div><div class="heading">Статистика</div>
+      <div class="stats"><div class="stat"><div class="tiny">TOTAL XP</div><div class="big accent" id="statXp">0</div></div><div class="stat"><div class="tiny">MISSIONS</div><div class="big" id="statMissions">0</div></div><div class="stat"><div class="tiny">ACTIVE DAYS</div><div class="big" id="statDays">0</div></div></div>
+      <div class="sectiontitle">ACTIVITY / 30 DAYS</div><div class="panel"><div id="monthGraph" class="activity" style="grid-template-columns:repeat(10,1fr)"></div></div>
+      <div class="sectiontitle">CATEGORY DISTRIBUTION</div><div class="panel" id="categoryStats"></div>
+      <div class="sectiontitle">AFTER ACTION REPORT</div><div class="panel"><div class="row"><strong>DAILY REPORT</strong><button class="btn secondary small" onclick="makeReport()">GENERATE</button></div><p class="sub" id="reportText">Отчёт появится после генерации.</p><div id="reportArchive"></div></div>
+    </section>
+
+    <section id="profile" class="screen">
+      <div class="eyebrow">Operator dossier / 07</div><div class="heading">Профиль оператора</div>
+      <div class="panel"><div class="row start"><div class="crest">LP</div><div style="flex:1"><div class="tiny muted">CALLSIGN</div><div id="callsignView" style="font-size:21px;font-weight:850">OPERATOR</div><div class="sub" id="profileRank">RECRUIT</div></div><button class="btn ghost small" onclick="editProfile()">EDIT</button></div><div class="divider"></div><div class="grid2"><div><div class="tiny muted">TOTAL XP</div><strong id="profileXp">0</strong></div><div><div class="tiny muted">MISSIONS COMPLETE</div><strong id="profileMissions">0</strong></div><div><div class="tiny muted">MEDALS</div><strong id="profileMedals">0</strong></div><div><div class="tiny muted">BEST STREAK</div><strong id="bestStreak">0 days</strong></div></div><div class="divider"></div><div class="tiny muted">PROTOCOL ACTIVATED</div><div class="sub" id="createdAt"></div></div>
+      <div class="panel"><strong>DATA MANAGEMENT</strong><p class="sub">Данные хранятся локально на этом устройстве. Экспортируй резервную копию перед очисткой браузера.</p><div class="row"><button class="btn secondary small" onclick="exportData()">EXPORT JSON</button><label class="btn ghost small" style="margin:0">IMPORT JSON<input type="file" accept="application/json" hidden onchange="importData(event)"></label></div></div>
+    </section>
+
+    <section id="history" class="screen">
+      <div class="eyebrow">Mission archive / 08</div><div class="heading">История операций</div><div class="panel"><div class="row"><strong>COMPLETED MISSIONS</strong><span class="tag" id="historyCount">0</span></div><div id="historyList"></div></div>
+    </section>
+  </main>
+</div>
+
+<nav class="nav">
+  <button class="active" data-screen="dashboard" onclick="showScreen('dashboard')"><b>⌂</b>HOME</button>
+  <button data-screen="missions" onclick="showScreen('missions')"><b>◎</b>MISSIONS</button>
+  <button data-screen="ranks" onclick="showScreen('ranks')"><b>⬡</b>RANKS</button>
+  <button data-screen="skills" onclick="showScreen('skills')"><b>◇</b>SKILLS</button>
+  <button data-screen="profile" onclick="showScreen('profile')"><b>◉</b>PROFILE</button>
+</nav>
+
+<div class="modalback" id="modalBack" onclick="if(event.target===this)closeModal()"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body></html>
