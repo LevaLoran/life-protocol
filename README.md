@@ -1,4 +1,4 @@
-# LIFE PROTOCOL
+# LIFE PROTOCOL — Beta 0.02
 
 Mobile-first installable web app (PWA) for real-life missions and RPG progression.
 
@@ -39,3 +39,11 @@ Open `http://localhost:8000`. Service worker and `crypto.randomUUID` need HTTPS 
 - Import validation and sanitising (XSS via crafted backup), same file can be re-imported.
 - iOS: no input zoom, apple-touch-icon, safe-area padding; PNG + maskable icons.
 - One report per day, report archive shown on load, working "refresh briefing", toast fixes.
+
+## Beta 0.02
+- Storage: IndexedDB (`lifeProtocolDB`, schema v1) + localStorage mirror. Beta 0.01 data is migrated automatically (the newest copy wins, nothing is deleted). Nothing is written before data is loaded, so progress is never overwritten by an empty state. Cache updates never touch user data.
+- Data Management: Export / Import, Last Backup, Storage Status.
+- 12-month contribution graph (tap a cell for date, missions, XP).
+- Cyberpunk-style skill tree: 6 branches x 3 tiers, cross-branch unlocks, node details.
+- Animations (respect `prefers-reduced-motion`), refreshed minimalist colorful dark UI.
+- PWA: versioned cache `life-protocol-b002`, update banner ("ОБНОВИТЬ") instead of forced reload.

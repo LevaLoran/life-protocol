@@ -40,11 +40,31 @@
     @media(prefers-reduced-motion:no-preference){.btn,.panel,.cell{transition:all .18s ease}.btn:active{transform:scale(.97)}.check.done{animation:pop .2s ease}@keyframes pop{50%{transform:scale(1.13)}}}
     .field,select.field{font-size:16px}
     header{padding-top:calc(13px + env(safe-area-inset-top))}.toast{top:calc(65px + env(safe-area-inset-top));max-width:92vw;text-align:center}
+    :root{--bg:#09090b;--panel:#121214;--panel2:#18181b;--line:#222226;--accent:#1ed760;--lime:#b6f23c;--violet:#a78bfa;--cyan:#4cc9f0}
+    body{background:var(--bg)}.panel{background:var(--panel);border:0;box-shadow:none;border-radius:16px}.rankcard:after{display:none}
+    .stat,.skill,.medal{background:var(--panel2);border:0}.field{background:#0c0c0e}.eyebrow{color:var(--violet)}
+    .btn{background:var(--accent);border-color:var(--accent);color:#04120a}.btn.secondary{background:transparent;color:var(--accent)}.btn.ghost{background:var(--panel2);color:var(--text);border-color:var(--line)}
+    .progress i{background:linear-gradient(90deg,var(--accent),var(--lime));box-shadow:none}.crest{border-color:#1ed76055;background:#1ed76012}.check.done{background:#1ed76022}
+    .cell[data-level="1"],.hc[data-l="1"]{background:#0e4429}.cell[data-level="2"],.hc[data-l="2"]{background:#006d32}.cell[data-level="3"],.hc[data-l="3"]{background:#26a641}.cell[data-level="4"],.hc[data-l="4"]{background:#39d353}
+    .heatwrap{overflow-x:auto;padding-bottom:6px;-webkit-overflow-scrolling:touch}.heat{display:flex;gap:3px;width:max-content}
+    .hw,.hd{display:grid;grid-template-rows:12px repeat(7,11px);gap:3px}.hw b,.hd b{font:600 9px/12px inherit;color:var(--muted);white-space:nowrap}.hd{font-size:9px;color:var(--muted);padding-right:4px;position:sticky;left:0;background:var(--panel)}.hd span{line-height:11px}
+    .hc{display:block;width:11px;height:11px;border-radius:3px;background:#1a1b1e;transition:background .4s}.hc.off{visibility:hidden}.hc[data-d]{cursor:pointer}.legend{display:flex;gap:4px;align-items:center;justify-content:flex-end;margin-top:6px}
+    #skillTree svg{width:100%;height:auto;display:block}.tn{cursor:pointer}.tn .n{fill:#0e0f11;stroke-width:2}.tn.lock{opacity:.4}.tn text{fill:var(--text);font:600 8px sans-serif;text-anchor:middle}.tn .lv{font-size:11px}.tc{font:800 7px sans-serif;text-anchor:middle;letter-spacing:.08em}
+    .tl{stroke:#2a2a2e;stroke-width:2}.tl.on{stroke-width:2.5}.ring{transition:stroke-dasharray .7s}
+    .upd{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom));z-index:40;background:var(--panel2);border:1px solid var(--accent);border-radius:12px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px;font-size:12px}
+    @media(prefers-reduced-motion:no-preference){
+     .screen.active{animation:scr .28s ease both}@keyframes scr{from{opacity:0;transform:translateY(8px)}}
+     .progress i,#rankBar{transition:width .7s cubic-bezier(.2,.8,.2,1)}.bump{animation:bump .5s}@keyframes bump{40%{transform:scale(1.2);color:var(--lime)}}
+     .rankup{animation:rup 1s ease}@keyframes rup{30%{transform:scale(1.25);filter:drop-shadow(0 0 12px var(--accent))}}
+     .hc[data-d]{animation:hin .4s ease both;animation-delay:calc(var(--i,0)*8ms)}@keyframes hin{from{opacity:0;transform:scale(.4)}}
+     .tn.new .n{animation:unl .9s ease 2;transform-box:fill-box;transform-origin:center}@keyframes unl{50%{transform:scale(1.3)}}
+     .upd,.mission,.medal,.skill{animation:scr .3s ease both}}
+    @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
   </style>
 </head>
 <body>
 <div class="app">
-  <header><div><div class="brand">LIFE <span>PROTOCOL</span></div><div class="status">● SYSTEM ONLINE</div></div><div class="topright"><span id="dateTop" class="tiny muted"></span><button class="iconbtn" onclick="openSettings()" aria-label="Настройки">⚙</button></div></header>
+  <header><div><div class="brand">LIFE <span>PROTOCOL</span></div><div class="status">● ONLINE · BETA 0.02</div></div><div class="topright"><span id="dateTop" class="tiny muted"></span><button class="iconbtn" onclick="openSettings()" aria-label="Настройки">⚙</button></div></header>
 
   <main>
     <section id="dashboard" class="screen active">
@@ -56,8 +76,8 @@
       <div class="sectiontitle"><span>ACTIVE MISSIONS</span><span class="muted tiny" id="missionCount">0 / 10</span></div>
       <div class="panel" id="dashMissions"></div>
       <div class="row"><button class="btn secondary" onclick="showScreen('missions')">ALL MISSIONS ↗</button><button class="btn ghost" onclick="openMission()">＋ NEW MISSION</button></div>
-      <div class="sectiontitle"><span>ACTIVITY / LAST 7 DAYS</span><span class="muted tiny">XP LOG</span></div>
-      <div class="panel"><div class="activity" id="weekGraph"></div><div class="row muted tiny" style="margin-top:9px"><span>LESS</span><span>MORE ▪ ▪ ▪ ▪</span></div></div>
+      <div class="sectiontitle"><span>ACTIVITY / 12 MONTHS</span><span class="muted tiny">XP LOG</span></div>
+      <div class="panel"><div class="heatwrap" id="weekGraph"></div><div class="tiny" id="heatInfo" style="margin-top:8px;color:var(--accent)">Нажми на ячейку, чтобы увидеть день</div><div class="legend tiny muted"><span>LESS</span><i class="hc" data-l="0"></i><i class="hc" data-l="1"></i><i class="hc" data-l="2"></i><i class="hc" data-l="3"></i><i class="hc" data-l="4"></i><span>MORE</span></div></div>
       <div class="sectiontitle"><span>ARCHIVE</span><span class="muted tiny">DATA</span></div>
       <div class="row" style="gap:8px"><button class="btn secondary small" style="flex:1" onclick="showScreen('achievements')">AWARDS</button><button class="btn secondary small" style="flex:1" onclick="showScreen('stats')">STATS</button><button class="btn secondary small" style="flex:1" onclick="showScreen('history')">HISTORY</button></div>
     </section>
@@ -77,7 +97,7 @@
 
     <section id="skills" class="screen">
       <div class="eyebrow">Character development / 04</div><div class="heading">Дерево навыков</div>
-      <p class="sub">Навыки развиваются отдельно от общего XP. Выполняй миссии соответствующих направлений.</p><div id="skillList"></div>
+      <p class="sub">Навыки развиваются отдельно от общего XP. Выполняй миссии соответствующих направлений.</p><div class="panel"><div id="skillTree"></div></div><div id="skillList"></div>
     </section>
 
     <section id="achievements" class="screen">
@@ -94,8 +114,8 @@
 
     <section id="profile" class="screen">
       <div class="eyebrow">Operator dossier / 07</div><div class="heading">Профиль оператора</div>
-      <div class="panel"><div class="row start"><div class="crest">LP</div><div style="flex:1"><div class="tiny muted">CALLSIGN</div><div id="callsignView" style="font-size:21px;font-weight:850">OPERATOR</div><div class="sub" id="profileRank">RECRUIT</div></div><button class="btn ghost small" onclick="editProfile()">EDIT</button></div><div class="divider"></div><div class="grid2"><div><div class="tiny muted">TOTAL XP</div><strong id="profileXp">0</strong></div><div><div class="tiny muted">MISSIONS COMPLETE</div><strong id="profileMissions">0</strong></div><div><div class="tiny muted">MEDALS</div><strong id="profileMedals">0</strong></div><div><div class="tiny muted">BEST STREAK</div><strong id="bestStreak">0 days</strong></div></div><div class="divider"></div><div class="tiny muted">PROTOCOL ACTIVATED</div><div class="sub" id="createdAt"></div></div>
-      <div class="panel"><strong>DATA MANAGEMENT</strong><p class="sub">Данные хранятся локально на этом устройстве. Экспортируй резервную копию перед очисткой браузера.</p><div class="row"><button class="btn secondary small" onclick="exportData()">EXPORT JSON</button><label class="btn ghost small" style="margin:0">IMPORT JSON<input type="file" accept="application/json" hidden onchange="importData(event)"></label></div></div>
+      <div class="panel"><div class="row start"><div class="crest">LP</div><div style="flex:1"><div class="tiny muted">CALLSIGN</div><div id="callsignView" style="font-size:21px;font-weight:850">OPERATOR</div><div class="sub" id="profileRank">RECRUIT</div></div><button class="btn ghost small" onclick="editProfile()">EDIT</button></div><div class="divider"></div><div class="grid2"><div><div class="tiny muted">TOTAL XP</div><strong id="profileXp">0</strong></div><div><div class="tiny muted">MISSIONS COMPLETE</div><strong id="profileMissions">0</strong></div><div><div class="tiny muted">MEDALS</div><strong id="profileMedals">0</strong></div><div><div class="tiny muted">BEST STREAK</div><strong id="bestStreak">0 days</strong></div></div><div class="divider"></div><div class="tiny muted">PROTOCOL ACTIVATED</div><div class="sub" id="createdAt"></div><div class="divider"></div><div class="tiny muted">LIFE PROTOCOL · <span id="appVer"></span></div></div>
+      <div class="panel"><strong>DATA MANAGEMENT</strong><p class="sub">Данные хранятся локально на этом устройстве. Экспортируй резервную копию перед очисткой браузера.</p><div class="sub" id="dataInfo" style="margin:8px 0 12px;line-height:1.7"></div><div class="row"><button class="btn secondary small" onclick="exportData()">EXPORT JSON</button><label class="btn ghost small" style="margin:0">IMPORT JSON<input type="file" accept="application/json" hidden onchange="importData(event)"></label></div></div>
       <div class="sectiontitle" style="margin-top:22px"><span>ARCHIVE</span><span class="muted tiny">DATA</span></div>
       <div class="row" style="gap:8px"><button class="btn secondary small" style="flex:1" onclick="showScreen('achievements')">AWARDS</button><button class="btn secondary small" style="flex:1" onclick="showScreen('stats')">STATS</button><button class="btn secondary small" style="flex:1" onclick="showScreen('history')">HISTORY</button></div>
     </section>

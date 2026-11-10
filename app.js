@@ -6,14 +6,14 @@ const today=()=>fmt(new Date());
 const daysAgo=n=>{const d=new Date();d.setDate(d.getDate()-n);return fmt(d)};
 const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
 const dateLabel=d=>new Date(d+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
-const categories={HEALTH:'Здоровье',EDUCATION:'Образование',PRODUCTIVITY:'Продуктивность',FITNESS:'Активность',CREATIVE:'Творчество',PERSONAL:'Личное'};
+const categories={HEALTH:'Здоровье',EDUCATION:'Образование',PRODUCTIVITY:'Продуктивность',FITNESS:'Активность',CREATIVE:'Творчество',PERSONAL:'Личное',TECH:'Технологии'};
 const rankNames=['RECRUIT','PRIVATE','CORPORAL','SERGEANT','LIEUTENANT','CAPTAIN','MAJOR','COLONEL','COMMANDER','ELITE','LEGENDARY'];
 // Порог XP для каждого ранга (RECRUIT начинается с 0)
 const rankThresholds=[0,100,200,350,550,800,1100,1500,2000,2700,3500];
 const rankIcons=['Ⅰ','Ⅱ','Ⅲ','✦','✧','◆','◇','⬟','⬢','✪','★'];
 const MAX_RANK=rankNames.length-1;
-const skillMap={HEALTH:'FITNESS',FITNESS:'FITNESS',EDUCATION:'INTELLIGENCE',PRODUCTIVITY:'DISCIPLINE',CREATIVE:'CREATIVITY',PERSONAL:'SOCIAL'};
-const skillNames={INTELLIGENCE:'INTELLIGENCE',DISCIPLINE:'DISCIPLINE',FITNESS:'FITNESS',CREATIVITY:'CREATIVITY',SOCIAL:'SOCIAL'};
+const skillMap={HEALTH:'FITNESS',FITNESS:'FITNESS',EDUCATION:'INTELLIGENCE',PRODUCTIVITY:'DISCIPLINE',CREATIVE:'CREATIVITY',PERSONAL:'SOCIAL',TECH:'TECHNICAL'};
+const skillNames={INTELLIGENCE:'INTELLIGENCE',DISCIPLINE:'DISCIPLINE',FITNESS:'FITNESS',CREATIVITY:'CREATIVITY',SOCIAL:'SOCIAL',TECHNICAL:'TECHNICAL'};
 const DAILY_LIMIT=10, XP_PER_MISSION=5, STORAGE_KEY='lifeProtocol';
 const has=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 const medalDefs=[
@@ -35,7 +35,7 @@ function uid(){
 const cleanId=v=>String(v==null?'':v).replace(/[^\w-]/g,'').slice(0,80);
 
 /* ---------- Состояние ---------- */
-const defaults=()=>({v:2,callsign:'OPERATOR',created:new Date().toISOString(),xp:0,missions:[],completed:[],reports:[],skills:{},unlocked:[],lastRank:0});
+const defaults=()=>({v:3,callsign:'OPERATOR',created:new Date().toISOString(),xp:0,missions:[],completed:[],reports:[],skills:{},unlocked:[],lastRank:0});
 function cleanMission(m){
  if(!m||typeof m!=='object')return null;
  const title=String(m.title==null?'':m.title).trim().slice(0,70);
@@ -76,20 +76,46 @@ function normalize(raw){
  const names=medalDefs.map(m=>m[0]);
  s.unlocked=(Array.isArray(s.unlocked)?s.unlocked:[]).filter((n,i,a)=>names.includes(n)&&a.indexOf(n)===i);
  if(legacy)migrateLegacy(s);
- s.v=2;
+ s.v=3;
+ if(Array.isArray(d.treeSeen))s.treeSeen=d.treeSeen.filter(x=>typeof x==='string');else delete s.treeSeen;
+ if(!Number.isFinite(+s.lastBackup))delete s.lastBackup;
  s.lastRank=rankIndex(s.xp);
  return s;
 }
 let state=load();
+const APP_VERSION='Beta 0.02',DB_NAME='lifeProtocolDB',DB_VER=1;
+let dbp=null,ready=false,idbOk=true;
+const getDb=()=>dbp||(dbp=new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VER);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('kv'))r.result.createObjectStore('kv')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
+const idbGet=k=>getDb().then(db=>new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}));
+const idbSet=(k,v)=>getDb().then(db=>new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error)}));
+function bump(el,c='bump'){if(!el)return;el.classList.remove(c);void el.offsetWidth;el.classList.add(c)}
+
 function load(){
  let raw=null;
  try{raw=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null')}catch(e){}
  return normalize(raw);
 }
-let saveWarned=false;
 function save(){
- try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}
- catch(e){if(!saveWarned){saveWarned=true;toast('Не удалось сохранить данные: хранилище недоступно')}}
+ if(!ready)return; // до загрузки данных ничего не пишем: нельзя затереть прогресс пустым состоянием
+ state.updated=Date.now();
+ try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}catch(e){}
+ if(idbOk)idbSet('state',state).catch(()=>{idbOk=false;toast('IndexedDB недоступна: данные в localStorage')});
+}
+async function boot(){
+ let a=null,b=null;
+ try{a=await idbGet('state')}catch(e){idbOk=false}
+ try{b=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null')}catch(e){}
+ // миграция: берём самую свежую копию (IndexedDB или localStorage Beta 0.01); ничего не удаляем
+ const c=[a,b].filter(x=>x&&typeof x==='object').sort((x,y)=>(y.updated||0)-(x.updated||0)||(y.xp||0)-(x.xp||0));
+ state=normalize(c[0]||null);ready=true;
+ try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist()}catch(e){}
+ checkMedals();render();generateBriefing();
+}
+async function renderData(){
+ let kb='?',p=null;
+ try{const e=await navigator.storage.estimate();kb=Math.round((e.usage||0)/1024)}catch(e){}
+ try{p=await navigator.storage.persisted()}catch(e){}
+ $('dataInfo').innerHTML=`LAST BACKUP: ${state.lastBackup?new Date(state.lastBackup).toLocaleString('ru-RU'):'ещё не было'}<br>STORAGE: IndexedDB ${idbOk?'OK':'ERROR'} · localStorage mirror · ${p?'persistent':'best-effort'} · ${kb} KB`;
 }
 let toastTimer=null;
 function toast(t){const el=$('toast');el.textContent=t;el.style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>{el.style.display='none'},2400)}
@@ -170,7 +196,7 @@ function toggleMission(id){
  const msgs=[],r=rankIndex(state.xp);
  if(r>state.lastRank){state.lastRank=r;msgs.push('RANK UP // '+rankNames[r])}else msgs.push('MISSION COMPLETE // +'+XP_PER_MISSION+' XP');
  checkMedals().forEach(n=>msgs.push('ACHIEVEMENT UNLOCKED // '+n));
- save();render();toast(msgs.join('  ·  '));
+ save();render();toast(msgs.join('  ·  '));bump($('totalXp'));bump($('rankBar'));if(msgs[0].startsWith('RANK UP'))bump($('rankCrest'),'rankup');
 }
 function openMission(m=null){
  $('modal').innerHTML=`<h3>${m?'EDIT MISSION':'NEW MISSION'}</h3><label>Название миссии</label><input class="field" id="mTitle" maxlength="70" placeholder="Например: прочитать 10 страниц" value="${m?esc(m.title):''}"><label>Категория</label><select class="field" id="mCategory">${Object.entries(categories).map(([k,v])=>`<option value="${k}" ${m&&m.category===k?'selected':''}>${v}</option>`).join('')}</select><label>Повторение</label><select class="field" id="mRepeat"><option value="once">Однократно</option><option value="daily" ${m&&m.repeat==='daily'?'selected':''}>Каждый день</option></select><div class="row" style="margin-top:17px"><button class="btn ghost" onclick="closeModal()">CANCEL</button><button class="btn" onclick="saveMission('${m?m.id:''}')">SAVE MISSION</button></div>${m?`<button class="btn secondary small" style="margin-top:12px;color:var(--red);border-color:var(--red)" onclick="deleteMission('${m.id}')">${m.repeat==='daily'?'DELETE SERIES':'DELETE MISSION'}</button>`:''}`;
@@ -226,7 +252,7 @@ function renderGraphs(){
  const week=[],month=[];
  for(let i=6;i>=0;i--)week.push(daysAgo(i));
  for(let i=29;i>=0;i--)month.push(daysAgo(i));
- $('weekGraph').innerHTML=week.map(cell).join('');
+ renderHeat();
  $('monthGraph').innerHTML=month.map(cell).join('');
 }
 function renderRanks(){
@@ -234,10 +260,10 @@ function renderRanks(){
  $('rankList').innerHTML=rankNames.map((n,i)=>`<div class="panel" style="padding:11px;display:flex;align-items:center;gap:12px;opacity:${i<=current?1:.45}"><div class="crest" style="width:43px;height:43px;font-size:18px">${rankIcons[i]}</div><div style="flex:1"><strong>${n}</strong><div class="tiny muted">${rankThresholds[i]} XP REQUIRED</div></div><span class="tag">${i<current?'UNLOCKED':i===current?'CURRENT':'LOCKED'}</span></div>`).join('');
 }
 function renderSkills(){
- const desc={INTELLIGENCE:'Обучение и новые знания',DISCIPLINE:'Планы и организация',FITNESS:'Активность и здоровье',CREATIVITY:'Творчество и проекты',SOCIAL:'Общение и личные дела'};
+ const desc={INTELLIGENCE:'Обучение и новые знания',DISCIPLINE:'Планы и организация',FITNESS:'Активность и здоровье',CREATIVITY:'Творчество и проекты',SOCIAL:'Общение и личные дела',TECHNICAL:'Технологии и инженерия'};
  $('skillList').innerHTML=Object.keys(skillNames).map(n=>{
   const xp=state.skills[n]||0,lvl=Math.floor(xp/10)+1,p=xp%10*10;
-  return `<div class="skill"><div class="row"><strong>${n}</strong><span class="tag">LVL ${String(lvl).padStart(2,'0')}</span></div><div class="sub">${desc[n]}</div><div class="row tiny muted" style="margin-top:9px"><span>${xp} SKILL POINTS</span><span>${p}% TO NEXT LEVEL</span></div><div class="progress"><i style="width:${p}%"></i></div></div>`}).join('');
+  return `<div class="skill"><div class="row"><strong>${n==="FITNESS"?"PHYSICAL":n}</strong><span class="tag">LVL ${String(lvl).padStart(2,'0')}</span></div><div class="sub">${desc[n]}</div><div class="row tiny muted" style="margin-top:9px"><span>${xp} SKILL POINTS</span><span>${p}% TO NEXT LEVEL</span></div><div class="progress"><i style="width:${p}%"></i></div></div>`}).join('');
 }
 // Возвращает названия медалей, разблокированных прямо сейчас
 function checkMedals(){
@@ -246,6 +272,7 @@ function checkMedals(){
  return fresh;
 }
 function renderMedals(){
+ renderTree();
  $('medalGrid').innerHTML=medalDefs.map(def=>{const ok=medalOk(def);return `<div class="medal ${ok?'':'locked'}"><div class="medalicon">${def[3]}</div><strong>${def[0]}</strong><div class="sub">${def[1]}</div><div class="tiny ${ok?'accent':'muted'}" style="margin-top:8px">${ok?'UNLOCKED':'LOCKED'}</div></div>`}).join('');
  const n=medalDefs.filter(d=>medalOk(d)).length;
  $('medalsDone').textContent=n;$('medalsTotal').textContent=medalDefs.length;$('medalsPct').textContent=Math.round(n/medalDefs.length*100)+'%';
@@ -272,6 +299,7 @@ function renderProfile(){
  $('callsignView').textContent=state.callsign;$('profileRank').textContent=rankNames[rankIndex(state.xp)];
  $('profileXp').textContent=state.xp;$('profileMissions').textContent=state.completed.length;
  $('profileMedals').textContent=medalDefs.filter(d=>medalOk(d)).length;
+ $('appVer').textContent=APP_VERSION;renderData();
  $('bestStreak').textContent=bestStreak(state)+' days';$('createdAt').textContent=new Date(state.created).toLocaleDateString('ru-RU');
 }
 function renderHistory(){
@@ -299,6 +327,7 @@ function editProfile(){openSettings()}
 
 /* ---------- Экспорт / импорт ---------- */
 function exportData(){
+ state.lastBackup=Date.now();save();renderData();
  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');
  a.href=URL.createObjectURL(blob);a.download='life-protocol-backup.json';
  document.body.appendChild(a);a.click();a.remove();
@@ -321,9 +350,80 @@ function importData(e){
 }
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
+
+/* ---------- Skill Tree ---------- */
+const treeCats=[['INTELLIGENCE','INTEL','#4cc9f0'],['DISCIPLINE','DISCIP','#b6f23c'],['CREATIVITY','CREATIVE','#a78bfa'],['FITNESS','PHYSICAL','#1ed760'],['TECHNICAL','TECH','#60a5fa'],['SOCIAL','SOCIAL','#f472b6']];
+const tierNames={INTELLIGENCE:['Learner','Analyst','Polymath'],DISCIPLINE:['Routine','Focus','Iron Will'],CREATIVITY:['Spark','Maker','Visionary'],FITNESS:['Mover','Athlete','Titan'],TECHNICAL:['Tinkerer','Engineer','Architect'],SOCIAL:['Connector','Speaker','Leader']};
+const tierAt=[0,10,30],cross={INTELLIGENCE:'TECHNICAL',DISCIPLINE:'FITNESS',CREATIVITY:'INTELLIGENCE',FITNESS:'DISCIPLINE',TECHNICAL:'DISCIPLINE',SOCIAL:'CREATIVITY'};
+function nodeInfo(c,t){
+ const p=state.skills[c]||0,pre=[];
+ if(t>0)pre.push([c,t-1]);if(t===2)pre.push([cross[c],1]);
+ const preOk=pre.every(([cc,tt])=>nodeInfo(cc,tt).lvl>=1),unlocked=p>=tierAt[t]&&preOk;
+ const lvl=unlocked?Math.min(5,Math.floor((p-tierAt[t])/8)+1):0;
+ return {p,pre,unlocked,lvl,pct:lvl>=5?100:unlocked?(p-tierAt[t])%8/8*100:0};
+}
+function renderTree(){
+ const X=i=>32+i*59,Y=t=>58+t*100,idx=Object.fromEntries(treeCats.map((c,i)=>[c[0],i]));
+ let lines='',nodes='',unlockedNow=[];
+ treeCats.forEach(([c,lab,col],i)=>{
+  nodes+=`<text x="${X(i)}" y="16" class="tc" fill="${col}">${lab}</text>`;
+  for(let t=0;t<3;t++){
+   const n=nodeInfo(c,t);if(n.unlocked)unlockedNow.push(c+t);
+   n.pre.forEach(([cc,tt])=>{lines+=`<line class="tl ${n.unlocked?'on':''}" x1="${X(idx[cc])}" y1="${Y(tt)}" x2="${X(i)}" y2="${Y(t)}" ${n.unlocked?`stroke="${col}"`:''}/>`});
+   const isNew=state.treeSeen&&!state.treeSeen.includes(c+t)&&n.unlocked;
+   nodes+=`<g class="tn ${n.unlocked?'':'lock'} ${isNew?'new':''}" data-c="${c}" data-t="${t}"><circle cx="${X(i)}" cy="${Y(t)}" r="25" fill="none" stroke="#222226" stroke-width="3"/><circle cx="${X(i)}" cy="${Y(t)}" r="25" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(157*n.pct/100).toFixed(1)} 157" transform="rotate(-90 ${X(i)} ${Y(t)})" class="ring"/><circle class="n" cx="${X(i)}" cy="${Y(t)}" r="19" stroke="${n.unlocked?col:'#333'}"/><text x="${X(i)}" y="${Y(t)+4}" class="lv">${n.unlocked?n.lvl:'🔒'}</text><text x="${X(i)}" y="${Y(t)+40}">${tierNames[c][t]}</text></g>`;
+  }});
+ $('skillTree').innerHTML=`<svg viewBox="0 0 364 330" role="img" aria-label="Skill tree">${lines}${nodes}</svg>`;
+ const fresh=state.treeSeen?unlockedNow.filter(x=>!state.treeSeen.includes(x)):[];
+ if(!state.treeSeen||fresh.length){state.treeSeen=unlockedNow;save();if(fresh.length&&ready)toast('SKILL UNLOCKED // '+fresh.map(f=>tierNames[f.slice(0,-1)][+f.slice(-1)]).join(', '))}
+}
+function openNode(c,t){
+ const n=nodeInfo(c,t),lab=treeCats.find(x=>x[0]===c)[1],ok=b=>b?'✓':'✗';
+ const conds=[`${ok(n.p>=tierAt[t])} ${tierAt[t]} skill points ${lab} (сейчас ${n.p})`].concat(n.pre.map(([cc,tt])=>`${ok(nodeInfo(cc,tt).lvl>=1)} Навык «${tierNames[cc][tt]}» уровня 1+`));
+ const d=['Базовый навык направления.','Продвинутый уровень: требует базу ветки.','Вершина ветки: требует связанный навык из другого направления.'][t];
+ $('modal').innerHTML=`<h3>${tierNames[c][t].toUpperCase()}</h3><div class="tiny muted">${lab} · TIER ${t+1}</div><p class="sub">${d} Прогресс растёт от выполненных миссий этого направления.</p><div class="row"><strong>LEVEL ${n.lvl} / 5</strong><span class="tag">${n.unlocked?'UNLOCKED':'LOCKED'}</span></div><div class="progress"><i style="width:${n.pct}%"></i></div><label>Условия</label>${conds.map(x=>`<div class="sub">${x}</div>`).join('')}<div class="row" style="margin-top:16px"><button class="btn ghost" onclick="closeModal()">CLOSE</button></div>`;showModal();
+}
+document.addEventListener('click',e=>{
+ const g=e.target.closest&&e.target.closest('.tn');if(g)openNode(g.dataset.c,+g.dataset.t);
+ const h=e.target.closest&&e.target.closest('.hc[data-d]');
+ if(h){const k=h.dataset.d,list=state.completed.filter(x=>x.date===k),xp=list.reduce((s,x)=>s+x.xp,0);$('heatInfo').textContent=`${dateLabel(k)} · ${list.length} миссий · ${xp} XP`}
+});
+/* ---------- Contribution graph ---------- */
+let heatSig='';
+function renderHeat(){
+ const sig=state.completed.length+'|'+today();if(sig===heatSig)return;heatSig=sig;
+ const by={};state.completed.forEach(x=>{by[x.date]=(by[x.date]||0)+x.xp});
+ const end=new Date();end.setHours(12,0,0,0);const d=new Date(end);d.setDate(d.getDate()-364);d.setDate(d.getDate()-(d.getDay()+6)%7);
+ const lvl=xp=>xp<=0?0:xp<=5?1:xp<=15?2:xp<=30?3:4;
+ let cols='',pm=-1,wi=0;
+ while(d<=end){let col='',lab='';
+  for(let r=0;r<7;r++){const k=fmt(d);
+   if(r===0&&d.getMonth()!==pm){pm=d.getMonth();lab=d.toLocaleDateString('ru-RU',{month:'short'}).replace('.','')}
+   col+=d>end?'<i class="hc off"></i>':`<i class="hc" data-d="${k}" data-l="${lvl(by[k]||0)}"></i>`;d.setDate(d.getDate()+1)}
+  cols+=`<div class="hw" style="--i:${wi++}"><b>${lab}</b>${col}</div>`}
+ const el=$('weekGraph');
+ el.innerHTML=`<div class="heat"><div class="hd"><b></b><span>Пн</span><span></span><span>Ср</span><span></span><span>Пт</span><span></span><span></span></div>${cols}</div>`;
+ el.scrollLeft=el.scrollWidth;
+}
+let updating=false;
+function showUpdate(w){
+ if($('updBar'))return;
+ const b=document.createElement('div');b.id='updBar';b.className='upd';
+ b.innerHTML='<span>Доступно обновление приложения</span><button class="btn small" id="updBtn">ОБНОВИТЬ</button>';
+ document.body.appendChild(b);
+ $('updBtn').onclick=()=>{updating=true;save();setTimeout(()=>w.postMessage({type:'SKIP_WAITING'}),200)};
+}
 /* ---------- Запуск ---------- */
-if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+if('serviceWorker'in navigator){
+ window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').then(reg=>{
+  const offer=w=>{if(navigator.serviceWorker.controller)showUpdate(w)};
+  if(reg.waiting)offer(reg.waiting);
+  reg.addEventListener('updatefound',()=>{const w=reg.installing;if(w)w.addEventListener('statechange',()=>{if(w.state==='installed')offer(w)})});
+  setInterval(()=>reg.update().catch(()=>{}),3600000);
+ }).catch(()=>{}));
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(updating)location.reload()});
+}
 // PWA может часами лежать в фоне: пересчитываем день при возврате и по таймеру
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&today()!==currentDay)render()});
 setInterval(()=>{if(today()!==currentDay)render()},30000);
-checkMedals();render();generateBriefing();
+boot();
