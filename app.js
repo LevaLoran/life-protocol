@@ -86,7 +86,7 @@ function normalize(raw){
  return s;
 }
 let state=load();
-const APP_VERSION='Бета 0.03',DB_NAME='lifeProtocolDB',DB_VER=1;
+const APP_VERSION='Бета 0.04',DB_NAME='lifeProtocolDB',DB_VER=1;
 let dbp=null,ready=false,idbOk=true;
 const getDb=()=>dbp||(dbp=new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VER);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('kv'))r.result.createObjectStore('kv')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
 const idbGet=k=>getDb().then(db=>new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}));
@@ -175,7 +175,7 @@ function render(){
  $('totalXp').textContent=state.xp;$('totalDone').textContent=state.completed.length;
  $('streak').innerHTML=currentStreak()+' <small style="font-size:11px">дн</small>';
  $('missionCount').textContent=doneToday+' / '+missionsToday.length;
- $('rankName2').textContent=rankNames[r.i];$('rankCrest2').innerHTML=crest(r.i);
+ $('rankName2').textContent=rankNames[r.i];$('rankCrest2').innerHTML=crest(r.i);renderNext(r);
  $('rankDesc').textContent=r.i===MAX_RANK?'Максимальный ранг достигнут':`${Math.max(0,r.end-state.xp)} XP до следующего ранга`;
  renderMissions();renderGraphs();renderRanks();renderSkills();renderMedals();renderStats();renderProfile();renderHistory();renderReports();
 }
@@ -259,8 +259,14 @@ function renderGraphs(){
  renderWeek();
 }
 function renderRanks(){
- const current=rankIndex(state.xp);
- $('rankList').innerHTML=rankNames.map((n,i)=>`<div class="panel" style="padding:11px;display:flex;align-items:center;gap:12px;opacity:${i<=current?1:.45}"><div class="crest" style="width:43px;height:43px">${crest(i)}</div><div style="flex:1"><strong>${n}</strong><div class="tiny muted">${rankThresholds[i]} XP ДЛЯ РАНГА</div></div><span class="tag">${i<current?'ОТКРЫТО':i===current?'ТЕКУЩИЙ':'ЗАКРЫТО'}</span></div>`).join('');
+ const cur=rankIndex(state.xp);
+ $('rankList').innerHTML='<div class="rgrid">'+rankNames.map((n,i)=>{const st=i<cur?'ОТКРЫТО':i===cur?'● ТЕКУЩИЙ':i===cur+1?'СЛЕДУЮЩИЙ':'ЗАКРЫТО';return `<div class="rcard ${i===cur?'cur':i===cur+1?'nxt':i>cur?'lk':''}" style="--c:${crestPal[i][0]}"><div class="row"><span class="rn">${String(i+1).padStart(2,'0')}</span><span class="tag">${st}</span></div><div class="remb">${crest(i)}</div><strong>${n}</strong><div class="tiny muted">${rankThresholds[i]} XP ДЛЯ ДОСТИЖЕНИЯ</div><i class="rline"></i></div>`}).join('')+'</div>';
+}
+function renderNext(r){
+ const nx=r.i<MAX_RANK?r.i+1:null,op=$('opRank');
+ if(op){op.textContent=String(r.i+1).padStart(2,'0')+' / '+rankNames[r.i];$('opName').textContent=state.callsign}
+ const nr2=$('nextRank2');if(nr2)nr2.innerHTML=nx===null?'<strong>Максимальный ранг достигнут</strong>':`<div class="row"><div><div class="tiny nx">СЛЕДУЮЩИЙ СТАТУС</div><strong style="font-size:20px;display:block;margin:10px 0">${rankNames[nx]}</strong><div class="sub">${rankThresholds[nx]} XP · ранг ${String(nx+1).padStart(2,'0')}</div></div><div class="remb sm">${crest(nx)}</div></div>`;
+ $('nextRank').innerHTML=nx===null?'<strong>Максимальный ранг достигнут</strong>':`<div class="tiny nx">СЛЕДУЮЩИЙ РАНГ / ${String(nx+1).padStart(2,'0')}</div><div class="row" style="margin:8px 0"><div><strong style="font-size:20px">${rankNames[nx]}</strong><div class="big nx">${Math.max(0,r.end-state.xp)} XP</div><div class="tiny muted">до нового статуса</div></div><div class="remb sm">${crest(nx)}</div></div><button class="btn ghost small" onclick="showScreen('ranks')">Все ранги →</button>`;
 }
 function renderSkills(){
  const desc={INTELLIGENCE:'Обучение и новые знания',DISCIPLINE:'Планы и организация',FITNESS:'Активность и здоровье',CREATIVITY:'Творчество и проекты',SOCIAL:'Общение и личные дела',TECHNICAL:'Технологии и инженерия'};
@@ -274,10 +280,12 @@ function checkMedals(){
  medalDefs.forEach(([name,,fn])=>{if(!state.unlocked.includes(name)&&fn(state)){state.unlocked.push(name);fresh.push(name)}});
  return fresh;
 }
+const medalLab=['01','07','100','10','7D','1K','50'];
+function medalHTML(){return medalDefs.map((def,k)=>{const ok=medalOk(def);return `<div class="mc ${ok?'on':''}"><div class="row"><span class="mb">${medalLab[k]}</span><span class="tiny ${ok?'accent':'muted'}">${ok?'✓ ОТКРЫТО':'ЗАКРЫТО'}</span></div><strong>${def[0]}</strong><div class="sub">${def[1]}</div></div>`}).join('')}
 function renderMedals(){
  renderTree();
- $('medalGrid').innerHTML=medalDefs.map(def=>{const ok=medalOk(def);return `<div class="medal ${ok?'':'locked'}"><div class="medalicon">${def[3]}</div><strong>${def[0]}</strong><div class="sub">${def[1]}</div><div class="tiny ${ok?'accent':'muted'}" style="margin-top:8px">${ok?'ОТКРЫТО':'ЗАКРЫТО'}</div></div>`}).join('');
- const n=medalDefs.filter(d=>medalOk(d)).length;
+ const n=medalDefs.filter(d=>medalOk(d)).length,hh=medalHTML();
+ $('medalGrid').innerHTML=hh;$('profMedals').innerHTML=hh;$('profMedalCount').textContent=n+' ОТКРЫТО / '+medalDefs.length;
  $('medalsDone').textContent=n;$('medalsTotal').textContent=medalDefs.length;$('medalsPct').textContent=Math.round(n/medalDefs.length*100)+'%';
 }
 function renderStats(){
@@ -299,9 +307,12 @@ function renderReports(){
  $('reportArchive').innerHTML=state.reports.filter(r=>r.date!==t).map(r=>`<div class="divider"></div><div class="tiny muted">${dateLabel(r.date)}</div><p class="sub">${esc(r.text)}</p>`).join('');
 }
 function renderProfile(){
- $('callsignView').textContent=state.callsign;$('profileRank').textContent=rankNames[rankIndex(state.xp)];
- $('profileXp').textContent=state.xp;$('profileMissions').textContent=state.completed.length;
- $('profileMedals').textContent=medalDefs.filter(d=>medalOk(d)).length;
+ const rp=rankProgress(),i=rp.i,nx=i<MAX_RANK?i+1:null,pad=n=>String(n).padStart(2,'0');
+ $('callsignView').textContent=state.callsign;$('profileRank').textContent=pad(i+1)+' / '+rankNames[i];$('profileRank').style.color=crestPal[i][0];
+ $('profileCrest').innerHTML=crest(i);$('profileXp').textContent=state.xp+' XP всего';
+ $('profileNext').textContent=nx===null?'Максимальный ранг':Math.max(0,rp.end-state.xp)+' XP до '+rankNames[nx].toLowerCase();$('profileBar').style.width=rp.pct+'%';
+ $('profileMissions').textContent=state.completed.length;
+ $('profileMedals').textContent=medalDefs.filter(d=>medalOk(d)).length+' / '+medalDefs.length;
  $('appVer').textContent=APP_VERSION;renderData();
  $('bestStreak').textContent=bestStreak(state)+' дн.';$('createdAt').textContent=new Date(state.created).toLocaleDateString('ru-RU');
 }
@@ -313,7 +324,7 @@ function renderHistory(){
 /* ---------- Навигация и модалки ---------- */
 const parentScreen={achievements:'profile',stats:'profile',history:'profile'};
 function showScreen(id){
- const navId=parentScreen[id]||id;
+ const nb=[...document.querySelectorAll('.nav button')].find(x=>x.dataset.screen===id&&x.offsetParent!==null),navId=nb?id:(parentScreen[id]||id);
  document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id===id));
  document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.screen===navId));
  window.scrollTo({top:0,behavior:'smooth'});
@@ -423,9 +434,26 @@ const crestSides=[4,5,6,6,8,8,10,10,12,12,14];
 const poly=(n,r,rot)=>Array.from({length:n},(_,k)=>{const a=(rot+360*k/n)*Math.PI/180;return (24+r*Math.cos(a)).toFixed(1)+','+(24+r*Math.sin(a)).toFixed(1)}).join(' ');
 const star=(n,R,r)=>Array.from({length:2*n},(_,k)=>{const a=(-90+180*k/n)*Math.PI/180,d=k%2?r:R;return (24+d*Math.cos(a)).toFixed(1)+','+(24+d*Math.sin(a)).toFixed(1)}).join(' ');
 let crestN=0;
+const sp=(cx,cy,R,q,n)=>Array.from({length:2*n},(_,k)=>{const t=(-90+180*k/n)*Math.PI/180,d=k%2?q:R;return (cx+d*Math.cos(t)).toFixed(1)+','+(cy+d*Math.sin(t)).toFixed(1)}).join(' ');
 function crest(i){
- const id='cg'+(crestN++),[a,b]=crestPal[i],n=crestSides[i];
- return `<svg viewBox="0 0 48 48" style="--g:${a}88"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><polygon points="${poly(n,22,n%2?-90:-90+180/n)}" fill="url(#${id})" fill-opacity=".2" stroke="url(#${id})" stroke-width="2"/><polygon points="${star(i+3,13,i>5?7:6)}" fill="url(#${id})"/></svg>`;
+ const id='cg'+(crestN++),[a,b]=crestPal[i];
+ const P=(cx,cy,R,q,n=5)=>sp(cx,cy,R,q,n);
+ const sh='<path d="M24 3 40 8v15c0 9-7 16-16 21C15 39 8 32 8 23V8z"/>',hole='<path d="M24 9 35 13v10c0 6-5 11-11 14-6-3-11-8-11-14V13z" fill="#0b0e10"/>';
+ const ch=y=>`<path d="M9 ${y}l15 9 15-9v6l-15 9-15-9z"/>`,wings='<path d="M7 12 1 18v12l6 6 4-8zM41 12l6 6v12l-6 6-4-8z"/>';
+ const G=[
+  '<rect x="12" y="10" width="24" height="4"/><path d="M10 26l14 9 14-9v-6l-14 9-14-9z"/>',
+  ch(8)+ch(20),
+  '<path d="M24 2l4 5-4 5-4-5z"/>'+ch(14)+ch(22)+ch(30),
+  sh+hole+'<rect x="16" y="15" width="16" height="4"/><rect x="16" y="22" width="16" height="4"/><rect x="16" y="29" width="16" height="4"/>',
+  '<path d="M24 3 38 24 24 45 10 24z"/><path d="M24 9 33 24 24 39 15 24z" fill="#0b0e10"/><polygon points="'+P(24,24,9,3,4)+'"/><path d="M7 15 3 24l4 9M41 15l4 9-4 9" fill="none" stroke="url(#'+id+')" stroke-width="3" stroke-linecap="round"/>',
+  sh+hole+'<polygon points="'+P(24,21,8,3.4)+'"/><polygon points="'+P(24,32,4.5,2)+'"/>',
+  '<path d="M24 0l4 8h-8z"/>'+sh+hole+'<polygon points="'+P(24,24,10,4)+'"/>',
+  wings+sh+hole+'<path d="M24 19l5 6-5 6-5-6z"/><polygon points="'+P(13,6,3.4,1.5)+'"/><polygon points="'+P(24,2,3.4,1.5)+'"/><polygon points="'+P(35,6,3.4,1.5)+'"/>',
+  wings+sh+hole+'<polygon points="'+P(24,24,9,3.6)+'"/><path d="M24 0l3 4-3 4-3-4z"/>',
+  '<circle cx="24" cy="27" r="17" fill="none" stroke="url(#'+id+')" stroke-width="4" stroke-dasharray="5 2"/><circle cx="24" cy="27" r="11" fill="#0b0e10"/><polygon points="'+P(24,27,9,3.6)+'"/><path d="M13 12l5 4 6-10 6 10 5-4-2 8H15z"/>',
+  '<path d="M8 36C3 24 6 14 13 11M40 36C45 24 42 14 35 11" fill="none" stroke="url(#'+id+')" stroke-width="3" stroke-linecap="round"/><path d="M14 4l4 4 6-7 6 7 4-4-2 9H16z"/><polygon points="'+P(24,29,12,5)+'"/>'
+ ];
+ return `<svg viewBox="0 0 48 48"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><g fill="url(#${id})">${G[i]}</g></svg>`;
 }
 /* ---------- Активность за 7 дней ---------- */
 function renderWeek(){

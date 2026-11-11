@@ -1,4 +1,4 @@
-# LIFE PROTOCOL — Beta 0.02
+# LIFE PROTOCOL — Beta 0.04
 
 Mobile-first installable web app (PWA) for real-life missions and RPG progression.
 
@@ -47,3 +47,6 @@ Open `http://localhost:8000`. Service worker and `crypto.randomUUID` need HTTPS 
 - Cyberpunk-style skill tree: 6 branches x 3 tiers, cross-branch unlocks, node details.
 - Animations (respect `prefers-reduced-motion`), refreshed minimalist colorful dark UI.
 - PWA: versioned cache `life-protocol-b002`, update banner ("ОБНОВИТЬ") instead of forced reload.
+
+## Beta 0.04
+- Figma integration (stage 1): lime palette, desktop sidebar (mobile keeps bottom bar), 11 new rank emblems, ranks grid, next-rank card. `figma.css` is a separate override file. Game logic and storage are unchanged.
