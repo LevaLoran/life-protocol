@@ -1,4 +1,4 @@
-const CACHE='life-protocol-b004';
+const CACHE='life-protocol-b005';
 const ASSETS=['./','./index.html','./app.js','./figma.css','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
 self.addEventListener('install',e=>{
   e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)));
