@@ -447,8 +447,9 @@ function renderWeek(){
  const by={},dn=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
  state.completed.forEach(x=>{by[x.date]=(by[x.date]||0)+1});
  let h='';
- for(let i=6;i>=0;i--){const k=daysAgo(i),n=by[k]||0,l=actLvl(n);
-  h+=`<button class="wd${i===0?' today':''}" data-wd="${k}" data-l="${l}" aria-label="${dateLabel(k)}: ${n}"><small>${dn[new Date(k+'T12:00:00').getDay()]}</small><b>${n}</b><small>${new Date(k+'T12:00:00').getDate()}</small></button>`}
+ const dow=(new Date().getDay()+6)%7;
+ for(let c=0;c<7;c++){const i=dow-c,k=daysAgo(i),n=by[k]||0,l=actLvl(n),fut=i<0;
+  h+=`<button class="wd${i===0?' today':''}${fut?' fut':''}" data-wd="${k}" data-l="${l}"${fut?' disabled':''} aria-label="${dateLabel(k)}: ${n}"><small>${dn[new Date(k+'T12:00:00').getDay()]}</small><b>${n}</b><small>${new Date(k+'T12:00:00').getDate()}</small></button>`}
  $('weekGraph').innerHTML=h;
 }
 function openDay(k){
