@@ -1,4 +1,4 @@
-# LIFE PROTOCOL — Beta 0.04
+# LIFE PROTOCOL — Beta 0.05
 
 Mobile-first installable web app (PWA) for real-life missions and RPG progression.
 
@@ -50,3 +50,9 @@ Open `http://localhost:8000`. Service worker and `crypto.randomUUID` need HTTPS 
 
 ## Beta 0.04
 - Figma integration (stage 1): lime palette, desktop sidebar (mobile keeps bottom bar), 11 new rank emblems, ranks grid, next-rank card. `figma.css` is a separate override file. Game logic and storage are unchanged.
+
+## Beta 0.05
+- Calendar rebuilt: real month grid (Mon-first), month/year navigation, day panel (done / planned / XP / medals), 12-month overview. Old 12-month heat graph removed (it only cached by count, mislabeled months, used a different scale than the weekly graph, and past missed missions were not stored).
+- New `state.days` (planned missions per day) and `state.medalDates` are recorded from now on; history (`state.completed`) is untouched. Older days have no "planned" data, older medals no date.
+- Avatars: upload JPG/PNG/WebP (up to 8 MB), crop with drag + zoom, saved as a 256 px WebP/JPEG data URL in `state.avatar` (IndexedDB + localStorage + backups), default LIFE PROTOCOL avatar otherwise.
+- Motion: `extras.css` (all animations are CSS, wrapped in `prefers-reduced-motion: no-preference`), `extras.js` (XP float, rank-up banner).

@@ -14,6 +14,7 @@ const rankIcons=['Ⅰ','Ⅱ','Ⅲ','✦','✧','◆','◇','⬟','⬢','✪','�
 const MAX_RANK=rankNames.length-1;
 const skillMap={HEALTH:'FITNESS',FITNESS:'FITNESS',EDUCATION:'INTELLIGENCE',PRODUCTIVITY:'DISCIPLINE',CREATIVE:'CREATIVITY',PERSONAL:'SOCIAL',TECH:'TECHNICAL'};
 const skillNames={INTELLIGENCE:'INTELLIGENCE',DISCIPLINE:'DISCIPLINE',FITNESS:'FITNESS',CREATIVITY:'CREATIVITY',SOCIAL:'SOCIAL',TECHNICAL:'TECHNICAL'};
+const actLvl=n=>n<=0?0:n<=2?1:n<=4?2:n<=7?3:4;
 const DAILY_LIMIT=10, XP_PER_MISSION=5, STORAGE_KEY='lifeProtocol';
 const has=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 const medalDefs=[
@@ -83,10 +84,13 @@ function normalize(raw){
  if(Array.isArray(d.treeSeen))s.treeSeen=d.treeSeen.filter(x=>typeof x==='string');else delete s.treeSeen;
  if(!Number.isFinite(+s.lastBackup))delete s.lastBackup;
  s.lastRank=rankIndex(s.xp);
+ s.days={};if(d.days&&typeof d.days==='object')Object.keys(d.days).forEach(k=>{const p=d.days[k]&&+d.days[k].p;if(DATE_RE.test(k)&&Number.isFinite(p)&&p>=0&&p<=50)s.days[k]={p:Math.floor(p)}});
+ s.medalDates={};if(d.medalDates&&typeof d.medalDates==='object')names.forEach(n=>{if(DATE_RE.test(String(d.medalDates[n])))s.medalDates[n]=d.medalDates[n]});
+ if(typeof s.avatar!=='string'||s.avatar.length>300000||!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(s.avatar))delete s.avatar;
  return s;
 }
 let state=load();
-const APP_VERSION='Бета 0.04',DB_NAME='lifeProtocolDB',DB_VER=1;
+const APP_VERSION='Бета 0.05',DB_NAME='lifeProtocolDB',DB_VER=1;
 let dbp=null,ready=false,idbOk=true;
 const getDb=()=>dbp||(dbp=new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VER);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('kv'))r.result.createObjectStore('kv')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
 const idbGet=k=>getDb().then(db=>new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}));
@@ -166,7 +170,7 @@ function ensureDaily(){
 let currentDay=today();
 function render(){
  currentDay=today();
- ensureDaily();save();
+ ensureDaily();window.noteDay&&noteDay();save();
  const r=rankProgress(),missionsToday=todaysMissions(),doneToday=missionsToday.filter(m=>m.done).length;
  $('dateTop').textContent=new Date().toLocaleDateString('ru-RU',{day:'2-digit',month:'short'}).toUpperCase();
  $('rankName').textContent=rankNames[r.i];$('rankLevel').textContent='УР. '+String(r.i+1).padStart(2,'0');$('rankCrest').innerHTML=crest(r.i);
@@ -178,6 +182,7 @@ function render(){
  $('rankName2').textContent=rankNames[r.i];$('rankCrest2').innerHTML=crest(r.i);renderNext(r);
  $('rankDesc').textContent=r.i===MAX_RANK?'Максимальный ранг достигнут':`${Math.max(0,r.end-state.xp)} XP до следующего ранга`;
  renderMissions();renderGraphs();renderRanks();renderSkills();renderMedals();renderStats();renderProfile();renderHistory();renderReports();
+ window.renderAvatars&&renderAvatars();
 }
 function missionHTML(m){
  return `<div class="mission"><button class="check ${m.done?'done':''}" onclick="toggleMission('${m.id}')" aria-label="Выполнить">${m.done?'✓':''}</button><div style="min-width:0;flex:1"><div class="missiontitle" style="${m.done?'text-decoration:line-through;color:#748087':''}">${esc(m.title)}</div><div class="missionmeta">${esc(categories[m.category]||m.category)} · ${m.repeat==='daily'?'Каждый день':'Однократно'}</div></div><span class="xp">${m.done?'+'+XP_PER_MISSION+' XP':XP_PER_MISSION+' XP'}</span><button class="iconbtn" style="padding:5px 8px" onclick="editMission('${m.id}')" aria-label="Редактировать">⋯</button></div>`;
@@ -199,7 +204,7 @@ function toggleMission(id){
  const msgs=[],r=rankIndex(state.xp);
  if(r>state.lastRank){state.lastRank=r;msgs.push('Новый ранг · '+rankNames[r])}else msgs.push('Миссия выполнена · +'+XP_PER_MISSION+' XP');
  checkMedals().forEach(n=>msgs.push('Достижение · '+n));
- save();render();toast(msgs.join('  ·  '));bump($('totalXp'));bump($('rankBar'));if(msgs[0].startsWith('Новый ранг'))bump($('rankCrest'),'rankup');
+ save();render();toast(msgs.join('  ·  '));bump($('totalXp'));bump($('rankBar'));window.fxGain&&fxGain('+'+XP_PER_MISSION+' XP');if(msgs[0].startsWith('Новый ранг')){bump($('rankCrest'),'rankup');window.fxRank&&fxRank(r)}
 }
 function openMission(m=null){
  $('modal').innerHTML=`<h3>${m?'Изменить миссию':'Новая миссия'}</h3><label>Название миссии</label><input class="field" id="mTitle" maxlength="70" placeholder="Например: прочитать 10 страниц" value="${m?esc(m.title):''}"><label>Категория</label><select class="field" id="mCategory">${Object.entries(categories).map(([k,v])=>`<option value="${k}" ${m&&m.category===k?'selected':''}>${v}</option>`).join('')}</select><label>Повторение</label><select class="field" id="mRepeat"><option value="once">Однократно</option><option value="daily" ${m&&m.repeat==='daily'?'selected':''}>Каждый день</option></select><div class="row" style="margin-top:17px"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn" onclick="saveMission('${m?m.id:''}')">Сохранить</button></div>${m?`<button class="btn secondary small" style="margin-top:12px;color:var(--red);border-color:var(--red)" onclick="deleteMission('${m.id}')">${m.repeat==='daily'?'Удалить серию':'Удалить миссию'}</button>`:''}`;
@@ -255,7 +260,7 @@ function renderGraphs(){
  const week=[],month=[];
  for(let i=6;i>=0;i--)week.push(daysAgo(i));
  for(let i=29;i>=0;i--)month.push(daysAgo(i));
- renderHeat();
+ window.renderCalendar&&renderCalendar();
  renderWeek();
 }
 function renderRanks(){
@@ -277,7 +282,7 @@ function renderSkills(){
 // Возвращает названия медалей, разблокированных прямо сейчас
 function checkMedals(){
  const fresh=[];
- medalDefs.forEach(([name,,fn])=>{if(!state.unlocked.includes(name)&&fn(state)){state.unlocked.push(name);fresh.push(name)}});
+ medalDefs.forEach(([name,,fn])=>{if(!state.unlocked.includes(name)&&fn(state)){state.unlocked.push(name);(state.medalDates=state.medalDates||{})[name]=today();fresh.push(name)}});
  return fresh;
 }
 const medalLab=['01','07','100','10','7D','1K','50'];
@@ -399,26 +404,8 @@ function openNode(c,t){
 }
 document.addEventListener('click',e=>{
  const g=e.target.closest&&e.target.closest('.tn');if(g)openNode(g.dataset.c,+g.dataset.t);
- const h=e.target.closest&&e.target.closest('.hc[data-d]');
- if(h){const k=h.dataset.d,list=state.completed.filter(x=>x.date===k),xp=list.reduce((s,x)=>s+x.xp,0);$('heatInfo').textContent=`${dateLabel(k)} · ${list.length} миссий · ${xp} XP`}
 });
 /* ---------- Contribution graph ---------- */
-let heatSig='';
-function renderHeat(){
- const sig=state.completed.length+'|'+today();if(sig===heatSig)return;heatSig=sig;
- const by={};state.completed.forEach(x=>{by[x.date]=(by[x.date]||0)+x.xp});
- const end=new Date();end.setHours(12,0,0,0);const d=new Date(end);d.setDate(d.getDate()-364);d.setDate(d.getDate()-(d.getDay()+6)%7);
- const lvl=xp=>xp<=0?0:xp<=5?1:xp<=15?2:xp<=30?3:4;
- let cols='',pm=-1,wi=0;
- while(d<=end){let col='',lab='';
-  for(let r=0;r<7;r++){const k=fmt(d);
-   if(r===0&&d.getMonth()!==pm){pm=d.getMonth();lab=d.toLocaleDateString('ru-RU',{month:'short'}).replace('.','')}
-   col+=d>end?'<i class="hc off"></i>':`<i class="hc" data-d="${k}" data-l="${lvl(by[k]||0)}"></i>`;d.setDate(d.getDate()+1)}
-  cols+=`<div class="hw" style="--i:${wi++}"><b>${lab}</b>${col}</div>`}
- const el=$('monthGraph');
- el.innerHTML=`<div class="heatwrap" id="heatScroll"><div class="heat"><div class="hd"><b></b><span>Пн</span><span></span><span>Ср</span><span></span><span>Пт</span><span></span><span></span></div>${cols}</div></div><div class="tiny" id="heatInfo" style="margin-top:8px;color:var(--accent)">Нажми на день, чтобы увидеть подробности</div><div class="legend tiny muted"><span>меньше</span><i class="hc" data-l="0"></i><i class="hc" data-l="1"></i><i class="hc" data-l="2"></i><i class="hc" data-l="3"></i><i class="hc" data-l="4"></i><span>больше</span></div>`;
- const sc=$('heatScroll');sc.scrollLeft=sc.scrollWidth;
-}
 let updating=false;
 function showUpdate(w){
  if($('updBar'))return;
@@ -460,13 +447,12 @@ function renderWeek(){
  const by={},dn=['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
  state.completed.forEach(x=>{by[x.date]=(by[x.date]||0)+1});
  let h='';
- for(let i=6;i>=0;i--){const k=daysAgo(i),n=by[k]||0,l=n===0?0:n<2?1:n<4?2:n<6?3:4;
+ for(let i=6;i>=0;i--){const k=daysAgo(i),n=by[k]||0,l=actLvl(n);
   h+=`<button class="wd${i===0?' today':''}" data-wd="${k}" data-l="${l}" aria-label="${dateLabel(k)}: ${n}"><small>${dn[new Date(k+'T12:00:00').getDay()]}</small><b>${n}</b><small>${new Date(k+'T12:00:00').getDate()}</small></button>`}
  $('weekGraph').innerHTML=h;
 }
 function openDay(k){
- const list=state.completed.filter(x=>x.date===k),xp=list.reduce((s,x)=>s+x.xp,0);
- $('modal').innerHTML=`<h3>${dateLabel(k)}</h3><div class="tiny muted">${list.length} миссий · ${xp} XP</div>${list.map(x=>`<div class="mission"><div style="flex:1"><strong>${esc(x.title)}</strong><div class="missionmeta">${esc(categories[x.category]||x.category)}</div></div><span class="xp">+${x.xp} XP</span></div>`).join('')||'<div class="empty">В этот день миссий не было.</div>'}<div class="row" style="margin-top:14px"><button class="btn ghost" onclick="closeModal()">Закрыть</button></div>`;
+ $('modal').innerHTML=(window.dayHTML?dayHTML(k):'<h3>'+dateLabel(k)+'</h3>')+'<div class="row" style="margin-top:14px"><button class="btn ghost" onclick="closeModal()">Закрыть</button></div>';
  showModal();
 }
 document.addEventListener('click',e=>{const w=e.target.closest&&e.target.closest('.wd');if(w)openDay(w.dataset.wd)});

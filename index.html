@@ -67,10 +67,11 @@
     @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
   </style>
   <link rel="stylesheet" href="figma.css">
+  <link rel="stylesheet" href="extras.css">
 </head>
 <body>
 <div class="app">
-  <header><div><div class="brand">LIFE <span>PROTOCOL</span></div><div class="status">● БЕТА 0.04</div></div><div class="topright"><span id="dateTop" class="tiny muted"></span><button class="iconbtn" onclick="openSettings()" aria-label="Настройки">⚙</button></div></header>
+  <header><div><div class="brand">LIFE <span>PROTOCOL</span></div><div class="status">● БЕТА 0.05</div></div><div class="topright"><button class="avslot" data-size="34" onclick="showScreen('profile')" aria-label="Профиль"></button><span id="dateTop" class="tiny muted"></span><button class="iconbtn" onclick="openSettings()" aria-label="Настройки">⚙</button></div></header>
 
   <main>
     <section id="dashboard" class="screen active">
@@ -96,7 +97,7 @@
 
     <section id="ranks" class="screen">
       <div class="eyebrow">Ранги / 03</div><div class="heading">Ранг оператора</div>
-      <div class="panel rankcard"><div class="crest" id="rankCrest2">Ⅰ</div><div style="flex:1"><div class="tiny muted">ТЕКУЩЕЕ ЗВАНИЕ</div><strong id="rankName2" style="font-size:20px">РЕКРУТ</strong><div class="sub" id="rankDesc">Начало протокола</div></div></div>
+      <div class="panel rankcard"><span class="avslot" data-size="52"></span><div class="crest" id="rankCrest2">Ⅰ</div><div style="flex:1"><div class="tiny muted">ТЕКУЩЕЕ ЗВАНИЕ</div><strong id="rankName2" style="font-size:20px">РЕКРУТ</strong><div class="sub" id="rankDesc">Начало протокола</div></div></div>
       <div class="sectiontitle">ПРОГРЕСС РАНГА</div><div id="rankList"></div>
     </section>
 
@@ -111,15 +112,16 @@
 
     <section id="stats" class="screen">
       <div class="eyebrow">Аналитика / 06</div><div class="heading">Статистика</div>
+      <div class="panel opbar"><span class="avslot" data-size="44"></span><div><strong id="statCall"></strong><div class="tiny muted" id="statRank"></div></div></div>
       <div class="stats"><div class="stat"><div class="tiny">ВСЕГО XP</div><div class="big accent" id="statXp">0</div></div><div class="stat"><div class="tiny">МИССИИ</div><div class="big" id="statMissions">0</div></div><div class="stat"><div class="tiny">АКТИВНЫХ ДНЕЙ</div><div class="big" id="statDays">0</div></div></div>
-      <div class="sectiontitle">АКТИВНОСТЬ ЗА ГОД</div><div class="panel"><div id="monthGraph"></div></div>
+      <div class="sectiontitle">КАЛЕНДАРЬ АКТИВНОСТИ</div><div class="panel"><div id="monthGraph"></div></div>
       <div class="sectiontitle">ПО КАТЕГОРИЯМ</div><div class="panel" id="categoryStats"></div>
       <div class="sectiontitle">ИТОГИ ДНЯ</div><div class="panel"><div class="row"><strong>ОТЧЁТ ЗА ДЕНЬ</strong><button class="btn secondary small" onclick="makeReport()">Составить</button></div><p class="sub" id="reportText">Отчёт появится после генерации.</p><div id="reportArchive"></div></div>
     </section>
 
     <section id="profile" class="screen">
       <div class="eyebrow">Профиль / 07</div><div class="heading">Профиль оператора</div>
-      <div class="phero"><div class="row start"><div style="flex:1;min-width:0"><div class="tiny muted">ПОЗЫВНОЙ</div><div id="callsignView" class="pcall">ОПЕРАТОР</div><div id="profileRank" class="prank">01 / РЕКРУТ</div></div><div class="crest" id="profileCrest"></div></div><div style="margin-top:22px"><div id="profileXp" class="pxp">0 XP всего</div><div class="sub" id="profileNext"></div><div class="progress" style="margin-top:16px"><i id="profileBar" style="width:0%"></i></div></div><div class="row" style="margin-top:16px"><span class="tiny muted">В ПРОТОКОЛЕ С <span id="createdAt"></span></span><button class="btn ghost small" onclick="editProfile()">Изменить</button></div></div>
+      <div class="phero"><div class="row start"><button class="avslot heroav" data-size="72" data-edit="1" aria-label="Изменить аватар"></button><div style="flex:1;min-width:0"><div class="tiny muted">ПОЗЫВНОЙ</div><div id="callsignView" class="pcall">ОПЕРАТОР</div><div id="profileRank" class="prank">01 / РЕКРУТ</div></div><div class="crest" id="profileCrest"></div></div><div style="margin-top:22px"><div id="profileXp" class="pxp">0 XP всего</div><div class="sub" id="profileNext"></div><div class="progress" style="margin-top:16px"><i id="profileBar" style="width:0%"></i></div></div><div class="row" style="margin-top:16px"><span class="tiny muted">В ПРОТОКОЛЕ С <span id="createdAt"></span></span><span style="display:flex;gap:8px"><button class="btn ghost small" onclick="openAvatar()">Фото</button><button class="btn ghost small" onclick="editProfile()">Изменить</button></span></div></div>
       <div class="ptiles"><div class="ptile"><b id="profileMissions">0</b><span>МИССИЙ</span></div><div class="ptile"><b id="bestStreak">0 дней</b><span>ЛУЧШАЯ СЕРИЯ</span></div><div class="ptile"><b id="profileMedals">0 / 7</b><span>НАГРАДЫ</span></div></div>
       <div class="row" style="margin:26px 0 12px"><div class="heading" style="margin:0;font-size:26px">Награды</div><span class="accent tiny" id="profMedalCount">0 ОТКРЫТО / 7</span></div><div class="mgrid" id="profMedals"></div>
       <div class="panel nextrank" id="nextRank2"></div>
@@ -145,10 +147,11 @@
   <button class="dk" data-screen="achievements" onclick="showScreen('achievements')"><i class="num">05</i>НАГРАДЫ</button>
   <button class="dk" data-screen="stats" onclick="showScreen('stats')"><i class="num">06</i>СТАТИСТИКА</button>
   <button class="mo" data-screen="profile" onclick="showScreen('profile')"><b>◉</b>ПРОФИЛЬ</button>
-  <div class="navfoot" onclick="showScreen('profile')"><b id="opName">ОПЕРАТОР</b><span id="opRank">01 / РЕКРУТ</span><em>● ЛОКАЛЬНЫЙ РЕЖИМ</em></div>
+  <div class="navfoot" onclick="showScreen('profile')"><span class="avslot" data-size="40"></span><b id="opName">ОПЕРАТОР</b><span id="opRank">01 / РЕКРУТ</span><em>● ЛОКАЛЬНЫЙ РЕЖИМ</em></div>
 </nav>
 
 <div class="modalback" id="modalBack" onclick="if(event.target===this)closeModal()"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
+<script src="extras.js"></script>
 <script src="app.js"></script>
 </body></html>
