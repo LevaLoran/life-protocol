@@ -7,10 +7,9 @@ const daysAgo=n=>{const d=new Date();d.setDate(d.getDate()-n);return fmt(d)};
 const DATE_RE=/^\d{4}-\d{2}-\d{2}$/;
 const dateLabel=d=>new Date(d+'T12:00:00').toLocaleDateString('ru-RU',{day:'numeric',month:'short'});
 const categories={HEALTH:'Здоровье',EDUCATION:'Образование',PRODUCTIVITY:'Продуктивность',FITNESS:'Активность',CREATIVE:'Творчество',PERSONAL:'Личное',TECH:'Технологии'};
-const rankNames=['РЕКРУТ','РЯДОВОЙ','ЕФРЕЙТОР','СЕРЖАНТ','ЛЕЙТЕНАНТ','КАПИТАН','МАЙОР','ПОЛКОВНИК','КОМАНДИР','ЭЛИТА','ЛЕГЕНДА'];
+const rankNames=['Новичок','Ученик','Практик','Знаток','Умелец','Профи','Эксперт','Наставник','Мастер','Виртуоз','Легенда'];
 // Порог XP для каждого ранга (RECRUIT начинается с 0)
 const rankThresholds=[0,100,200,350,550,800,1100,1500,2000,2700,3500];
-const rankIcons=['Ⅰ','Ⅱ','Ⅲ','✦','✧','◆','◇','⬟','⬢','✪','★'];
 const MAX_RANK=rankNames.length-1;
 const skillMap={HEALTH:'FITNESS',FITNESS:'FITNESS',EDUCATION:'INTELLIGENCE',PRODUCTIVITY:'DISCIPLINE',CREATIVE:'CREATIVITY',PERSONAL:'SOCIAL',TECH:'TECHNICAL'};
 const skillNames={INTELLIGENCE:'INTELLIGENCE',DISCIPLINE:'DISCIPLINE',FITNESS:'FITNESS',CREATIVITY:'CREATIVITY',SOCIAL:'SOCIAL',TECHNICAL:'TECHNICAL'};
@@ -18,15 +17,15 @@ const actLvl=n=>n<=0?0:n<=2?1:n<=4?2:n<=7?3:4;
 const DAILY_LIMIT=10, XP_PER_MISSION=5, STORAGE_KEY='lifeProtocol';
 const has=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 const medalDefs=[
- ['ПЕРВЫЙ ШАГ','Первая выполненная миссия',s=>s.completed.length>=1,'✦'],
- ['НЕДЕЛЯ В ДЕЛЕ','Активность в течение 7 разных дней',s=>activeDays(s)>=7,'▦'],
- ['СОТНЯ','100 выполненных миссий',s=>s.completed.length>=100,'Ⅰ'],
- ['ПЕРФЕКЦИОНИСТ','10 миссий за один день',s=>Object.values(groupByDay(s.completed)).some(a=>a.length>=10),'◇'],
- ['ДИСЦИПЛИНА','7 дней подряд с активностью',s=>bestStreak(s)>=7,'⬡'],
- ['ВЕТЕРАН','1000 заработанных XP',s=>s.xp>=1000,'★'],
- ['СПЕЦИАЛИСТ','50 миссий одной категории',s=>Object.values(countCats(s.completed)).some(n=>n>=50),'⌖']
+ ['ПЕРВЫЙ ШАГ','Первая выполненная задача',s=>s.completed.length>=1,'●'],
+ ['НЕДЕЛЯ В ДЕЛЕ','Активность в течение 7 разных дней',s=>activeDays(s)>=7,'●'],
+ ['СОТНЯ','100 выполненных задач',s=>s.completed.length>=100,'●'],
+ ['ПЕРФЕКЦИОНИСТ','10 задач за один день',s=>Object.values(groupByDay(s.completed)).some(a=>a.length>=10),'●'],
+ ['ДИСЦИПЛИНА','7 дней подряд с активностью',s=>bestStreak(s)>=7,'●'],
+ ['ОПЫТНЫЙ','1000 заработанных XP',s=>s.xp>=1000,'●'],
+ ['СПЕЦИАЛИСТ','50 задач одной категории',s=>Object.values(countCats(s.completed)).some(n=>n>=50),'●']
 ];
-const medalMig={'FIRST BLOOD':'ПЕРВЫЙ ШАГ','WEEK WARRIOR':'НЕДЕЛЯ В ДЕЛЕ','CENTURY':'СОТНЯ','PERFECTIONIST':'ПЕРФЕКЦИОНИСТ','DISCIPLINE':'ДИСЦИПЛИНА','VETERAN':'ВЕТЕРАН','SPECIALIST':'СПЕЦИАЛИСТ'};
+const medalMig={'FIRST BLOOD':'ПЕРВЫЙ ШАГ','WEEK WARRIOR':'НЕДЕЛЯ В ДЕЛЕ','CENTURY':'СОТНЯ','PERFECTIONIST':'ПЕРФЕКЦИОНИСТ','DISCIPLINE':'ДИСЦИПЛИНА','VETERAN':'ОПЫТНЫЙ','ВЕТЕРАН':'ОПЫТНЫЙ','SPECIALIST':'СПЕЦИАЛИСТ'};
 const skillRu={INTELLIGENCE:'ИНТЕЛЛЕКТ',DISCIPLINE:'ДИСЦИПЛИНА',FITNESS:'ФИЗИКА',CREATIVITY:'ТВОРЧЕСТВО',TECHNICAL:'ТЕХНИКА',SOCIAL:'СОЦИУМ'};
 const medalOk=(def,s=state)=>s.unlocked.includes(def[0])||def[2](s);
 
@@ -38,7 +37,7 @@ function uid(){
 const cleanId=v=>String(v==null?'':v).replace(/[^\w-]/g,'').slice(0,80);
 
 /* ---------- Состояние ---------- */
-const defaults=()=>({v:3,callsign:'ОПЕРАТОР',created:new Date().toISOString(),xp:0,missions:[],completed:[],reports:[],skills:{},unlocked:[],lastRank:0});
+const defaults=()=>({v:3,callsign:'ПОЛЬЗОВАТЕЛЬ',created:new Date().toISOString(),xp:0,missions:[],completed:[],reports:[],skills:{},unlocked:[],lastRank:0});
 function cleanMission(m){
  if(!m||typeof m!=='object')return null;
  const title=String(m.title==null?'':m.title).trim().slice(0,70);
@@ -52,7 +51,7 @@ function cleanDone(x){
  const xp=Number.isFinite(+x.xp)?+x.xp:XP_PER_MISSION;
  return {id:cleanId(x.id),title:String(x.title==null?'':x.title).slice(0,70),category:has(categories,x.category)?x.category:'PERSONAL',date:x.date,xp};
 }
-// Старые версии размножали ежедневные миссии: оставляем один шаблон и одну сегодняшнюю копию на серию
+// Старые версии размножали ежедневные задачи: оставляем один шаблон и одну сегодняшнюю копию на серию
 function migrateLegacy(s){
  const t=today(),groups={},drop=new Set();
  s.missions.filter(m=>m.repeat==='daily').forEach(m=>{const k=m.title+'|'+m.category;(groups[k]=groups[k]||[]).push(m)});
@@ -69,7 +68,7 @@ function migrateLegacy(s){
 function normalize(raw){
  const d=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
  const legacy=!d.v,s={...defaults(),...d};
- s.callsign=String(s.callsign==null?'':s.callsign).trim().slice(0,18)||'ОПЕРАТОР';
+ s.callsign=String(s.callsign==null?'':s.callsign).trim().slice(0,18)||'ПОЛЬЗОВАТЕЛЬ';
  s.xp=Number.isFinite(+s.xp)?Math.max(0,+s.xp):0;
  if(isNaN(new Date(s.created).getTime()))s.created=new Date().toISOString();
  s.missions=(Array.isArray(s.missions)?s.missions:[]).map(cleanMission).filter(Boolean);
@@ -80,12 +79,12 @@ function normalize(raw){
  s.unlocked=(Array.isArray(s.unlocked)?s.unlocked:[]).map(n=>medalMig[n]||n).filter((n,i,a)=>names.includes(n)&&a.indexOf(n)===i);
  if(legacy)migrateLegacy(s);
  s.v=3;
- if(s.callsign==='OPERATOR')s.callsign='ОПЕРАТОР';
+ if(s.callsign==='OPERATOR'||s.callsign==='\u041e\u041f\u0415\u0420\u0410\u0422\u041e\u0420')s.callsign='ПОЛЬЗОВАТЕЛЬ'; // старое имя по умолчанию
  if(Array.isArray(d.treeSeen))s.treeSeen=d.treeSeen.filter(x=>typeof x==='string');else delete s.treeSeen;
  if(!Number.isFinite(+s.lastBackup))delete s.lastBackup;
  s.lastRank=rankIndex(s.xp);
  s.days={};if(d.days&&typeof d.days==='object')Object.keys(d.days).forEach(k=>{const p=d.days[k]&&+d.days[k].p;if(DATE_RE.test(k)&&Number.isFinite(p)&&p>=0&&p<=50)s.days[k]={p:Math.floor(p)}});
- s.medalDates={};if(d.medalDates&&typeof d.medalDates==='object')names.forEach(n=>{if(DATE_RE.test(String(d.medalDates[n])))s.medalDates[n]=d.medalDates[n]});
+ s.medalDates={};if(d.medalDates&&typeof d.medalDates==='object')names.forEach(n=>{const o=Object.keys(medalMig).find(k=>medalMig[k]===n&&d.medalDates[k]),v=d.medalDates[n]||(o&&d.medalDates[o]);if(DATE_RE.test(String(v)))s.medalDates[n]=v});
  if(typeof s.avatar!=='string'||s.avatar.length>300000||!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(s.avatar))delete s.avatar;
  return s;
 }
@@ -153,11 +152,11 @@ function currentStreak(){
 }
 const todaysMissions=()=>{const t=today();return state.missions.filter(m=>m.created===t)};
 
-/* ---------- Ежедневные миссии ---------- */
-// Шаблон серии — миссия repeat='daily' без sourceId. Копии создаются только из шаблонов.
+/* ---------- Ежедневные задачи ---------- */
+// Шаблон серии — задача repeat='daily' без sourceId. Копии создаются только из шаблонов.
 function ensureDaily(){
  const t=today();
- // прошлые разовые миссии и копии не нужны: история хранится в state.completed
+ // прошлые разовые задачи и копии не нужны: история хранится в state.completed
  state.missions=state.missions.filter(m=>m.created>=t||(m.repeat==='daily'&&!m.sourceId));
  state.missions.filter(m=>m.repeat==='daily'&&!m.sourceId&&m.created<t).forEach(tpl=>{
   if(todaysMissions().length>=DAILY_LIMIT)return;
@@ -173,11 +172,11 @@ function render(){
  ensureDaily();window.noteDay&&noteDay();save();
  const r=rankProgress(),missionsToday=todaysMissions(),doneToday=missionsToday.filter(m=>m.done).length;
  $('dateTop').textContent=new Date().toLocaleDateString('ru-RU',{day:'2-digit',month:'short'}).toUpperCase();
- $('rankName').textContent=rankNames[r.i];$('rankLevel').textContent='УР. '+String(r.i+1).padStart(2,'0');$('rankCrest').innerHTML=crest(r.i);
+ $('rankName').textContent=rankNames[r.i];$('rankLevel').textContent=String(r.i+1).padStart(2,'0');$('rankCrest').innerHTML=crest(r.i);
  $('xpText').textContent=r.i===MAX_RANK?state.xp+' XP — максимальный ранг':`${state.xp-r.start} / ${r.end-r.start} XP`;
  $('xpPercent').textContent=Math.round(r.pct)+'%';$('rankBar').style.width=r.pct+'%';
- $('totalXp').textContent=state.xp;$('totalDone').textContent=state.completed.length;
- $('streak').innerHTML=currentStreak()+' <small style="font-size:11px">дн</small>';
+ $('totalXp').innerHTML=window.dotNum?dotNum(state.xp):state.xp;$('totalDone').textContent=state.completed.length;
+ $('streak').textContent=currentStreak();
  $('missionCount').textContent=doneToday+' / '+missionsToday.length;
  $('rankName2').textContent=rankNames[r.i];$('rankCrest2').innerHTML=crest(r.i);renderNext(r);
  $('rankDesc').textContent=r.i===MAX_RANK?'Максимальный ранг достигнут':`${Math.max(0,r.end-state.xp)} XP до следующего ранга`;
@@ -185,12 +184,12 @@ function render(){
  window.renderAvatars&&renderAvatars();
 }
 function missionHTML(m){
- return `<div class="mission"><button class="check ${m.done?'done':''}" onclick="toggleMission('${m.id}')" aria-label="Выполнить">${m.done?'✓':''}</button><div style="min-width:0;flex:1"><div class="missiontitle" style="${m.done?'text-decoration:line-through;color:#748087':''}">${esc(m.title)}</div><div class="missionmeta">${esc(categories[m.category]||m.category)} · ${m.repeat==='daily'?'Каждый день':'Однократно'}</div></div><span class="xp">${m.done?'+'+XP_PER_MISSION+' XP':XP_PER_MISSION+' XP'}</span><button class="iconbtn" style="padding:5px 8px" onclick="editMission('${m.id}')" aria-label="Редактировать">⋯</button></div>`;
+ return `<div class="mission"><button class="check ${m.done?'done':''}" onclick="toggleMission('${m.id}')" aria-label="Выполнить">${m.done?'✓':''}</button><div style="min-width:0;flex:1"><div class="missiontitle" style="${m.done?'text-decoration:line-through;color:var(--dis)':''}">${esc(m.title)}</div><div class="missionmeta">${esc(categories[m.category]||m.category)} · ${m.repeat==='daily'?'Каждый день':'Однократно'}</div></div><span class="xp">${m.done?'+'+XP_PER_MISSION+' XP':XP_PER_MISSION+' XP'}</span><button class="iconbtn" style="padding:5px 8px" onclick="editMission('${m.id}')" aria-label="Редактировать">⋯</button></div>`;
 }
 function renderMissions(){
  const todays=todaysMissions();
- $('dashMissions').innerHTML=todays.length?todays.map(missionHTML).join(''):'<div class="empty">Нет активных миссий. Добавь первую операцию.</div>';
- $('allMissions').innerHTML=todays.length?todays.map(missionHTML).join(''):'<div class="empty">Список миссий пуст.</div>';
+ $('dashMissions').innerHTML=todays.length?todays.map(missionHTML).join(''):'<div class="empty">Пока нет задач. Добавь первую.</div>';
+ $('allMissions').innerHTML=todays.length?todays.map(missionHTML).join(''):'<div class="empty">Список задач пуст.</div>';
  $('missionLimit').textContent=todays.length+' / '+DAILY_LIMIT;
  $('missionSummary').textContent=`${todays.filter(m=>m.done).length} выполнено · ${todays.length} создано`;
 }
@@ -202,18 +201,18 @@ function toggleMission(id){
  state.completed.push({id:m.id,title:m.title,category:m.category,date:today(),xp:XP_PER_MISSION});
  const sk=skillMap[m.category]||'SOCIAL';state.skills[sk]=(state.skills[sk]||0)+1;
  const msgs=[],r=rankIndex(state.xp);
- if(r>state.lastRank){state.lastRank=r;msgs.push('Новый ранг · '+rankNames[r])}else msgs.push('Миссия выполнена · +'+XP_PER_MISSION+' XP');
+ if(r>state.lastRank){state.lastRank=r;msgs.push('Новый ранг · '+rankNames[r])}else msgs.push('Задача выполнена · +'+XP_PER_MISSION+' XP');
  checkMedals().forEach(n=>msgs.push('Достижение · '+n));
  save();render();toast(msgs.join('  ·  '));bump($('totalXp'));bump($('rankBar'));window.fxGain&&fxGain('+'+XP_PER_MISSION+' XP');if(msgs[0].startsWith('Новый ранг')){bump($('rankCrest'),'rankup');window.fxRank&&fxRank(r)}
 }
 function openMission(m=null){
- $('modal').innerHTML=`<h3>${m?'Изменить миссию':'Новая миссия'}</h3><label>Название миссии</label><input class="field" id="mTitle" maxlength="70" placeholder="Например: прочитать 10 страниц" value="${m?esc(m.title):''}"><label>Категория</label><select class="field" id="mCategory">${Object.entries(categories).map(([k,v])=>`<option value="${k}" ${m&&m.category===k?'selected':''}>${v}</option>`).join('')}</select><label>Повторение</label><select class="field" id="mRepeat"><option value="once">Однократно</option><option value="daily" ${m&&m.repeat==='daily'?'selected':''}>Каждый день</option></select><div class="row" style="margin-top:17px"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn" onclick="saveMission('${m?m.id:''}')">Сохранить</button></div>${m?`<button class="btn secondary small" style="margin-top:12px;color:var(--red);border-color:var(--red)" onclick="deleteMission('${m.id}')">${m.repeat==='daily'?'Удалить серию':'Удалить миссию'}</button>`:''}`;
+ $('modal').innerHTML=`<h3>${m?'Изменить задачу':'Новая задача'}</h3><label>Название задачи</label><input class="field" id="mTitle" maxlength="70" placeholder="Например: прочитать 10 страниц" value="${m?esc(m.title):''}"><label>Категория</label><select class="field" id="mCategory">${Object.entries(categories).map(([k,v])=>`<option value="${k}" ${m&&m.category===k?'selected':''}>${v}</option>`).join('')}</select><label>Повторение</label><select class="field" id="mRepeat"><option value="once">Однократно</option><option value="daily" ${m&&m.repeat==='daily'?'selected':''}>Каждый день</option></select><div class="row" style="margin-top:17px"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn" onclick="saveMission('${m?m.id:''}')">Сохранить</button></div>${m?`<button class="btn secondary small" style="margin-top:12px;color:var(--mut)" onclick="deleteMission('${m.id}')">${m.repeat==='daily'?'Удалить серию':'Удалить задачу'}</button>`:''}`;
  showModal();
 }
 function editMission(id){const m=state.missions.find(x=>x.id===id);if(m)openMission(m)}
 function saveMission(id){
  const title=$('mTitle').value.trim();
- if(!title){toast('Введи название миссии');return}
+ if(!title){toast('Введи название задачи');return}
  const data={title,category:$('mCategory').value,repeat:$('mRepeat').value};
  if(id){
   const m=state.missions.find(x=>x.id===id);
@@ -225,10 +224,10 @@ function saveMission(id){
    if(data.repeat==='once')delete m.sourceId;
   }
  }else{
-  if(todaysMissions().length>=DAILY_LIMIT){toast('Максимум '+DAILY_LIMIT+' миссий в день');return}
+  if(todaysMissions().length>=DAILY_LIMIT){toast('Максимум '+DAILY_LIMIT+' задач в день');return}
   state.missions.push({id:uid(),...data,created:today(),done:false});
  }
- save();closeModal();render();toast('Миссия сохранена');
+ save();closeModal();render();toast('Задача сохранена');
 }
 function deleteMission(id){
  const m=state.missions.find(x=>x.id===id);
@@ -250,13 +249,13 @@ function addSuggestion(title,category){
 let briefOffset=0;
 function generateBriefing(){
  const done=state.completed.filter(x=>x.date===today()).length,left=DAILY_LIMIT-todaysMissions().length;
- const lines=[`Оператор ${state.callsign}, протокол активен.`,`Сегодня выполнено миссий: ${done}. Не торопись — выбери одну реалистичную задачу и двигайся постепенно.`,`Твой текущий ранг — ${rankNames[rankIndex(state.xp)]}. Каждая завершённая миссия приносит ${XP_PER_MISSION} XP.`,`На сегодня доступно ещё ${Math.max(0,left)} слотов для новых миссий. Помни: отдых тоже часть устойчивого прогресса.`];
+ const lines=[`Привет, ${state.callsign}. Выбери одну понятную задачу и начни с неё.`,`Сегодня выполнено задач: ${done}. Двигайся в своём темпе.`,`Твой ранг: ${rankNames[rankIndex(state.xp)]}. Каждая задача даёт ${XP_PER_MISSION} XP.`,`Сегодня можно добавить ещё задач: ${Math.max(0,left)}. Отдых — тоже часть прогресса.`];
  $('briefing').textContent=lines[(new Date().getDate()+briefOffset)%lines.length];
 }
 function refreshBriefing(){briefOffset++;generateBriefing()}
 function renderGraphs(){
  const groups=groupByDay(state.completed);
- const cell=d=>{const n=(groups[d]||[]).length;return `<div class="cell" data-level="${n===0?0:n<3?1:n<5?2:n<8?3:4}" title="${dateLabel(d)}: ${n} миссий"></div>`};
+ const cell=d=>{const n=(groups[d]||[]).length;return `<div class="cell" data-level="${n===0?0:n<3?1:n<5?2:n<8?3:4}" title="${dateLabel(d)}: ${n} задач"></div>`};
  const week=[],month=[];
  for(let i=6;i>=0;i--)week.push(daysAgo(i));
  for(let i=29;i>=0;i--)month.push(daysAgo(i));
@@ -265,19 +264,18 @@ function renderGraphs(){
 }
 function renderRanks(){
  const cur=rankIndex(state.xp);
- $('rankList').innerHTML='<div class="rgrid">'+rankNames.map((n,i)=>{const st=i<cur?'ОТКРЫТО':i===cur?'● ТЕКУЩИЙ':i===cur+1?'СЛЕДУЮЩИЙ':'ЗАКРЫТО';return `<div class="rcard ${i===cur?'cur':i===cur+1?'nxt':i>cur?'lk':''}" style="--c:${crestPal[i][0]}"><div class="row"><span class="rn">${String(i+1).padStart(2,'0')}</span><span class="tag">${st}</span></div><div class="remb">${crest(i)}</div><strong>${n}</strong><div class="tiny muted">${rankThresholds[i]} XP ДЛЯ ДОСТИЖЕНИЯ</div><i class="rline"></i></div>`}).join('')+'</div>';
+ $('rankList').innerHTML='<div class="rgrid">'+rankNames.map((n,i)=>{const st=i<cur?'пройден':i===cur?'сейчас':i===cur+1?'следующий':'закрыт';return `<div class="rcard ${i===cur?'cur':i===cur+1?'nxt':i>cur?'lk':''}"><div class="row"><span class="rn">${String(i+1).padStart(2,'0')}</span><span class="tiny">${st}</span></div><div class="remb">${crest(i)}</div><strong>${n}</strong><div class="tiny">${rankThresholds[i]} XP</div></div>`}).join('')+'</div>';
 }
 function renderNext(r){
  const nx=r.i<MAX_RANK?r.i+1:null,op=$('opRank');
- if(op){op.textContent=String(r.i+1).padStart(2,'0')+' / '+rankNames[r.i];$('opName').textContent=state.callsign}
- const nr2=$('nextRank2');if(nr2)nr2.innerHTML=nx===null?'<strong>Максимальный ранг достигнут</strong>':`<div class="row"><div><div class="tiny nx">СЛЕДУЮЩИЙ СТАТУС</div><strong style="font-size:20px;display:block;margin:10px 0">${rankNames[nx]}</strong><div class="sub">${rankThresholds[nx]} XP · ранг ${String(nx+1).padStart(2,'0')}</div></div><div class="remb sm">${crest(nx)}</div></div>`;
- $('nextRank').innerHTML=nx===null?'<strong>Максимальный ранг достигнут</strong>':`<div class="tiny nx">СЛЕДУЮЩИЙ РАНГ / ${String(nx+1).padStart(2,'0')}</div><div class="row" style="margin:8px 0"><div><strong style="font-size:20px">${rankNames[nx]}</strong><div class="big nx">${Math.max(0,r.end-state.xp)} XP</div><div class="tiny muted">до нового статуса</div></div><div class="remb sm">${crest(nx)}</div></div><button class="btn ghost small" onclick="showScreen('ranks')">Все ранги →</button>`;
+ if(op){op.textContent=String(r.i+1).padStart(2,'0')+' · '+rankNames[r.i];$('opName').textContent=state.callsign}
+ $('nextRank').innerHTML=nx===null?'<strong>Максимальный ранг</strong>':`<div><div class="tiny">Следующий ранг</div><strong>${rankNames[nx]}</strong><div class="tiny">ещё ${Math.max(0,r.end-state.xp)} XP</div></div><div class="remb sm">${crest(nx)}</div>`;
 }
 function renderSkills(){
  const desc={INTELLIGENCE:'Обучение и новые знания',DISCIPLINE:'Планы и организация',FITNESS:'Активность и здоровье',CREATIVITY:'Творчество и проекты',SOCIAL:'Общение и личные дела',TECHNICAL:'Технологии и инженерия'};
  $('skillList').innerHTML=Object.keys(skillNames).map(n=>{
   const xp=state.skills[n]||0,lvl=Math.floor(xp/10)+1,p=xp%10*10;
-  return `<div class="skill"><div class="row"><strong>${skillRu[n]}</strong><span class="tag">УР. ${String(lvl).padStart(2,'0')}</span></div><div class="sub">${desc[n]}</div><div class="row tiny muted" style="margin-top:9px"><span>${xp} очков</span><span>${p}% до следующего уровня</span></div><div class="progress"><i style="width:${p}%"></i></div></div>`}).join('');
+  return `<div class="skill"><div class="row"><strong>${skillRu[n]}</strong><span class="tag">ур. ${String(lvl).padStart(2,'0')}</span></div><div class="row tiny" style="margin-top:8px"><span>${xp} очков</span><span>${p}%</span></div><div class="progress" style="margin-top:8px"><i style="width:${p}%"></i></div></div>`}).join('');
 }
 // Возвращает названия медалей, разблокированных прямо сейчас
 function checkMedals(){
@@ -286,7 +284,7 @@ function checkMedals(){
  return fresh;
 }
 const medalLab=['01','07','100','10','7D','1K','50'];
-function medalHTML(){return medalDefs.map((def,k)=>{const ok=medalOk(def);return `<div class="mc ${ok?'on':''}"><div class="row"><span class="mb">${medalLab[k]}</span><span class="tiny ${ok?'accent':'muted'}">${ok?'✓ ОТКРЫТО':'ЗАКРЫТО'}</span></div><strong>${def[0]}</strong><div class="sub">${def[1]}</div></div>`}).join('')}
+function medalHTML(){return medalDefs.map((def,k)=>{const ok=medalOk(def);return `<div class="mc ${ok?'on':''}"><div class="row"><span class="mb">${medalLab[k]}</span><span class="tiny">${ok?'открыто':'закрыто'}</span></div><strong>${def[0]}</strong><div class="sub">${def[1]}</div></div>`}).join('')}
 function renderMedals(){
  renderTree();
  const n=medalDefs.filter(d=>medalOk(d)).length,hh=medalHTML();
@@ -301,7 +299,7 @@ function renderStats(){
 function makeReport(){
  const t=today(),todayDone=state.completed.filter(x=>x.date===t),cats=countCats(todayDone),top=Object.entries(cats).sort((a,b)=>b[1]-a[1])[0];
  const xpToday=todayDone.reduce((s,x)=>s+x.xp,0);
- const report=`${dateLabel(t)}: выполнено ${todayDone.length} миссий, заработано ${xpToday} XP. ${top?'Самая активная категория: '+categories[top[0]]+'. ':''}Текущий общий прогресс: ${state.xp} XP. Двигайся в комфортном темпе и выбирай посильные задачи.`;
+ const report=`${dateLabel(t)}: выполнено ${todayDone.length} задач, заработано ${xpToday} XP. ${top?'Самая активная категория: '+categories[top[0]]+'. ':''}Текущий общий прогресс: ${state.xp} XP. Двигайся в комфортном темпе и выбирай посильные задачи.`;
  state.reports=state.reports.filter(r=>r.date!==t); // один отчёт в день
  state.reports.unshift({date:t,text:report});state.reports=state.reports.slice(0,30);
  save();renderReports();
@@ -313,13 +311,13 @@ function renderReports(){
 }
 function renderProfile(){
  const rp=rankProgress(),i=rp.i,nx=i<MAX_RANK?i+1:null,pad=n=>String(n).padStart(2,'0');
- $('callsignView').textContent=state.callsign;$('profileRank').textContent=pad(i+1)+' / '+rankNames[i];$('profileRank').style.color=crestPal[i][0];
- $('profileCrest').innerHTML=crest(i);$('profileXp').textContent=state.xp+' XP всего';
- $('profileNext').textContent=nx===null?'Максимальный ранг':Math.max(0,rp.end-state.xp)+' XP до '+rankNames[nx].toLowerCase();$('profileBar').style.width=rp.pct+'%';
+ $('callsignView').textContent=state.callsign;$('profileRank').textContent=pad(i+1)+' · '+rankNames[i];
+ $('profileCrest').innerHTML=crest(i);$('profileXp').textContent=state.xp+' XP';
+ $('profileNext').textContent=nx===null?'Максимальный ранг':'До ранга «'+rankNames[nx]+'»: '+Math.max(0,rp.end-state.xp)+' XP';$('profileBar').style.width=rp.pct+'%';
  $('profileMissions').textContent=state.completed.length;
  $('profileMedals').textContent=medalDefs.filter(d=>medalOk(d)).length+' / '+medalDefs.length;
  $('appVer').textContent=APP_VERSION;renderData();
- $('bestStreak').textContent=bestStreak(state)+' дн.';$('createdAt').textContent=new Date(state.created).toLocaleDateString('ru-RU');
+ $('bestStreak').textContent=bestStreak(state);$('createdAt').textContent=new Date(state.created).toLocaleDateString('ru-RU');
 }
 function renderHistory(){
  $('historyCount').textContent=state.completed.length;
@@ -338,10 +336,10 @@ function showScreen(id){
 function showModal(){$('modalBack').classList.add('show')}
 function closeModal(){$('modalBack').classList.remove('show')}
 function openSettings(){
- $('modal').innerHTML=`<h3>Настройки</h3><label>Позывной</label><input class="field" id="settingCall" maxlength="18" value="${esc(state.callsign)}"><p class="sub">Данные сохраняются в локальном хранилище браузера. Установка: открой сайт в браузере телефона и выбери «Добавить на главный экран».</p><div class="row" style="margin-top:16px"><button class="btn ghost" onclick="closeModal()">Закрыть</button><button class="btn" onclick="saveSettings()">Сохранить</button></div>`;
+ $('modal').innerHTML=`<h3>Настройки</h3><label>Имя</label><input class="field" id="settingCall" maxlength="18" value="${esc(state.callsign)}"><p class="sub">Данные сохраняются в локальном хранилище браузера. Установка: открой сайт в браузере телефона и выбери «Добавить на главный экран».</p><div class="row" style="margin-top:16px"><button class="btn ghost" onclick="closeModal()">Закрыть</button><button class="btn" onclick="saveSettings()">Сохранить</button></div>`;
  showModal();
 }
-function saveSettings(){state.callsign=$('settingCall').value.trim()||'ОПЕРАТОР';save();closeModal();render()}
+function saveSettings(){state.callsign=$('settingCall').value.trim()||'ПОЛЬЗОВАТЕЛЬ';save();closeModal();render()}
 function editProfile(){openSettings()}
 
 /* ---------- Экспорт / импорт ---------- */
@@ -371,7 +369,7 @@ function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;',
 
 
 /* ---------- Skill Tree ---------- */
-const treeCats=[['INTELLIGENCE','ИНТЕЛЛЕКТ','#4cc9f0'],['DISCIPLINE','ДИСЦИПЛ.','#b6f23c'],['CREATIVITY','ТВОРЧЕСТВО','#a78bfa'],['FITNESS','ФИЗИКА','#1ed760'],['TECHNICAL','ТЕХНИКА','#60a5fa'],['SOCIAL','СОЦИУМ','#f472b6']];
+const treeCats=[['INTELLIGENCE','ИНТЕЛЛЕКТ','#000'],['DISCIPLINE','ДИСЦИПЛ.','#000'],['CREATIVITY','ТВОРЧЕСТВО','#000'],['FITNESS','ФИЗИКА','#000'],['TECHNICAL','ТЕХНИКА','#000'],['SOCIAL','СОЦИУМ','#000']];
 const tierNames={INTELLIGENCE:['Ученик','Аналитик','Эрудит'],DISCIPLINE:['Режим','Фокус','Воля'],CREATIVITY:['Искра','Мастер','Визионер'],FITNESS:['Ходок','Атлет','Титан'],TECHNICAL:['Самоделкин','Инженер','Архитектор'],SOCIAL:['Связной','Оратор','Лидер']};
 const tierAt=[0,10,30],cross={INTELLIGENCE:'TECHNICAL',DISCIPLINE:'FITNESS',CREATIVITY:'INTELLIGENCE',FITNESS:'DISCIPLINE',TECHNICAL:'DISCIPLINE',SOCIAL:'CREATIVITY'};
 function nodeInfo(c,t){
@@ -385,12 +383,12 @@ function renderTree(){
  const X=i=>32+i*59,Y=t=>58+t*100,idx=Object.fromEntries(treeCats.map((c,i)=>[c[0],i]));
  let lines='',nodes='',unlockedNow=[];
  treeCats.forEach(([c,lab,col],i)=>{
-  nodes+=`<text x="${X(i)}" y="16" class="tc" fill="${col}">${lab}</text>`;
+  nodes+=`<text x="${X(i)}" y="16" class="tc">${lab}</text>`;
   for(let t=0;t<3;t++){
    const n=nodeInfo(c,t);if(n.unlocked)unlockedNow.push(c+t);
    n.pre.forEach(([cc,tt])=>{lines+=`<line class="tl ${n.unlocked?'on':''}" x1="${X(idx[cc])}" y1="${Y(tt)}" x2="${X(i)}" y2="${Y(t)}" ${n.unlocked?`stroke="${col}"`:''}/>`});
    const isNew=state.treeSeen&&!state.treeSeen.includes(c+t)&&n.unlocked;
-   nodes+=`<g class="tn ${n.unlocked?'':n.avail?'avail':'lock'} ${isNew?'new':''}" data-c="${c}" data-t="${t}"><circle cx="${X(i)}" cy="${Y(t)}" r="25" fill="none" stroke="#222226" stroke-width="3"/><circle cx="${X(i)}" cy="${Y(t)}" r="25" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(157*n.pct/100).toFixed(1)} 157" transform="rotate(-90 ${X(i)} ${Y(t)})" class="ring"/><circle class="n" cx="${X(i)}" cy="${Y(t)}" r="19" stroke="${n.unlocked?col:'#333'}"/><text x="${X(i)}" y="${Y(t)+4}" class="lv">${n.unlocked?n.lvl:n.avail?'+':'🔒'}</text><text x="${X(i)}" y="${Y(t)+40}">${tierNames[c][t]}</text></g>`;
+   nodes+=`<g class="tn ${n.unlocked?'':n.avail?'avail':'lock'} ${isNew?'new':''}" data-c="${c}" data-t="${t}"><circle cx="${X(i)}" cy="${Y(t)}" r="25" fill="none" stroke="#e4e4e4" stroke-width="3"/><circle cx="${X(i)}" cy="${Y(t)}" r="25" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(157*n.pct/100).toFixed(1)} 157" transform="rotate(-90 ${X(i)} ${Y(t)})" class="ring"/><circle class="n" cx="${X(i)}" cy="${Y(t)}" r="19" stroke="${n.unlocked?col:'#bdbdbd'}"/><text x="${X(i)}" y="${Y(t)+4}" class="lv">${n.unlocked?n.lvl:n.avail?'+':'–'}</text><text x="${X(i)}" y="${Y(t)+40}">${tierNames[c][t]}</text></g>`;
   }});
  $('skillTree').innerHTML=`<svg viewBox="0 0 364 330" role="img" aria-label="Дерево навыков">${lines}${nodes}</svg>`;
  const fresh=state.treeSeen?unlockedNow.filter(x=>!state.treeSeen.includes(x)):[];
@@ -400,7 +398,7 @@ function openNode(c,t){
  const n=nodeInfo(c,t),lab=treeCats.find(x=>x[0]===c)[1],ok=b=>b?'✓':'✗';
  const conds=[`${ok(n.p>=tierAt[t])} ${tierAt[t]} очков навыка «${lab}» (сейчас ${n.p})`].concat(n.pre.map(([cc,tt])=>`${ok(nodeInfo(cc,tt).lvl>=1)} Навык «${tierNames[cc][tt]}» уровня 1+`));
  const d=['Базовый навык направления.','Продвинутый уровень: требует базу ветки.','Вершина ветки: требует связанный навык из другого направления.'][t];
- $('modal').innerHTML=`<h3>${tierNames[c][t].toUpperCase()}</h3><div class="tiny muted">${lab} · Ступень ${t+1}</div><p class="sub">${d} Прогресс растёт от выполненных миссий этого направления.</p><div class="row"><strong>УРОВЕНЬ ${n.lvl} / 5</strong><span class="tag">${n.unlocked?'ИЗУЧЕНО':n.avail?'ДОСТУПНО':'ЗАКРЫТО'}</span></div><div class="progress"><i style="width:${n.pct}%"></i></div><label>Условия</label>${conds.map(x=>`<div class="sub">${x}</div>`).join('')}<div class="row" style="margin-top:16px"><button class="btn ghost" onclick="closeModal()">Закрыть</button></div>`;showModal();
+ $('modal').innerHTML=`<h3>${tierNames[c][t].toUpperCase()}</h3><div class="tiny muted">${lab} · Ступень ${t+1}</div><p class="sub">${d} Прогресс растёт от выполненных задач этого направления.</p><div class="row"><strong>УРОВЕНЬ ${n.lvl} / 5</strong><span class="tag">${n.unlocked?'ИЗУЧЕНО':n.avail?'ДОСТУПНО':'ЗАКРЫТО'}</span></div><div class="progress"><i style="width:${n.pct}%"></i></div><label>Условия</label>${conds.map(x=>`<div class="sub">${x}</div>`).join('')}<div class="row" style="margin-top:16px"><button class="btn ghost" onclick="closeModal()">Закрыть</button></div>`;showModal();
 }
 document.addEventListener('click',e=>{
  const g=e.target.closest&&e.target.closest('.tn');if(g)openNode(g.dataset.c,+g.dataset.t);
@@ -410,37 +408,29 @@ let updating=false;
 function showUpdate(w){
  if($('updBar'))return;
  const b=document.createElement('div');b.id='updBar';b.className='upd';
- b.innerHTML='<span>Доступно обновление приложения</span><button class="btn small" id="updBtn">ОБНОВИТЬ</button>';
+ b.innerHTML='<span>Доступно обновление приложения</span><button class="btn small" id="updBtn">Обновить</button>';
  document.body.appendChild(b);
  $('updBtn').onclick=()=>{updating=true;save();setTimeout(()=>w.postMessage({type:'SKIP_WAITING'}),200)};
 }
 
 /* ---------- Ранги: уникальные знаки ---------- */
-const crestPal=[['#9aa4ad','#4b5563'],['#7dd3fc','#2563eb'],['#6ee7b7','#059669'],['#fde047','#d97706'],['#fb923c','#dc2626'],['#f472b6','#9333ea'],['#a78bfa','#4f46e5'],['#22d3ee','#0ea5e9'],['#bef264','#16a34a'],['#fbbf24','#ef4444'],['#fff7ae','#f59e0b']];
-const crestSides=[4,5,6,6,8,8,10,10,12,12,14];
-const poly=(n,r,rot)=>Array.from({length:n},(_,k)=>{const a=(rot+360*k/n)*Math.PI/180;return (24+r*Math.cos(a)).toFixed(1)+','+(24+r*Math.sin(a)).toFixed(1)}).join(' ');
-const star=(n,R,r)=>Array.from({length:2*n},(_,k)=>{const a=(-90+180*k/n)*Math.PI/180,d=k%2?r:R;return (24+d*Math.cos(a)).toFixed(1)+','+(24+d*Math.sin(a)).toFixed(1)}).join(' ');
-let crestN=0;
-const sp=(cx,cy,R,q,n)=>Array.from({length:2*n},(_,k)=>{const t=(-90+180*k/n)*Math.PI/180,d=k%2?q:R;return (cx+d*Math.cos(t)).toFixed(1)+','+(cy+d*Math.sin(t)).toFixed(1)}).join(' ');
 function crest(i){
- const id='cg'+(crestN++),[a,b]=crestPal[i];
- const P=(cx,cy,R,q,n=5)=>sp(cx,cy,R,q,n);
- const sh='<path d="M24 3 40 8v15c0 9-7 16-16 21C15 39 8 32 8 23V8z"/>',hole='<path d="M24 9 35 13v10c0 6-5 11-11 14-6-3-11-8-11-14V13z" fill="#0b0e10"/>';
- const ch=y=>`<path d="M9 ${y}l15 9 15-9v6l-15 9-15-9z"/>`,wings='<path d="M7 12 1 18v12l6 6 4-8zM41 12l6 6v12l-6 6-4-8z"/>';
+ const D=(x,y,r)=>`<circle cx="${x}" cy="${y}" r="${r}" fill="currentColor" stroke="none"/>`;
+ const ring=(n,R,r,o=0)=>Array.from({length:n},(_,k)=>{const a=o+2*Math.PI*k/n;return D((24+R*Math.cos(a)).toFixed(1),(24+R*Math.sin(a)).toFixed(1),r)}).join('');
  const G=[
-  '<rect x="12" y="10" width="24" height="4"/><path d="M10 26l14 9 14-9v-6l-14 9-14-9z"/>',
-  ch(8)+ch(20),
-  '<path d="M24 2l4 5-4 5-4-5z"/>'+ch(14)+ch(22)+ch(30),
-  sh+hole+'<rect x="16" y="15" width="16" height="4"/><rect x="16" y="22" width="16" height="4"/><rect x="16" y="29" width="16" height="4"/>',
-  '<path d="M24 3 38 24 24 45 10 24z"/><path d="M24 9 33 24 24 39 15 24z" fill="#0b0e10"/><polygon points="'+P(24,24,9,3,4)+'"/><path d="M7 15 3 24l4 9M41 15l4 9-4 9" fill="none" stroke="url(#'+id+')" stroke-width="3" stroke-linecap="round"/>',
-  sh+hole+'<polygon points="'+P(24,21,8,3.4)+'"/><polygon points="'+P(24,32,4.5,2)+'"/>',
-  '<path d="M24 0l4 8h-8z"/>'+sh+hole+'<polygon points="'+P(24,24,10,4)+'"/>',
-  wings+sh+hole+'<path d="M24 19l5 6-5 6-5-6z"/><polygon points="'+P(13,6,3.4,1.5)+'"/><polygon points="'+P(24,2,3.4,1.5)+'"/><polygon points="'+P(35,6,3.4,1.5)+'"/>',
-  wings+sh+hole+'<polygon points="'+P(24,24,9,3.6)+'"/><path d="M24 0l3 4-3 4-3-4z"/>',
-  '<circle cx="24" cy="27" r="17" fill="none" stroke="url(#'+id+')" stroke-width="4" stroke-dasharray="5 2"/><circle cx="24" cy="27" r="11" fill="#0b0e10"/><polygon points="'+P(24,27,9,3.6)+'"/><path d="M13 12l5 4 6-10 6 10 5-4-2 8H15z"/>',
-  '<path d="M8 36C3 24 6 14 13 11M40 36C45 24 42 14 35 11" fill="none" stroke="url(#'+id+')" stroke-width="3" stroke-linecap="round"/><path d="M14 4l4 4 6-7 6 7 4-4-2 9H16z"/><polygon points="'+P(24,29,12,5)+'"/>'
+  D(24,24,4.5),
+  '<circle cx="24" cy="24" r="14"/>',
+  '<circle cx="24" cy="24" r="14"/>'+D(24,24,4),
+  '<path d="M24 9 40 37H8z"/>'+D(24,28,3),
+  '<rect x="9" y="9" width="30" height="30"/><circle cx="24" cy="24" r="8"/>'+D(24,24,2.5),
+  '<circle cx="24" cy="24" r="15"/><path d="M9 24h30"/>'+D(9,24,2.6)+D(39,24,2.6)+D(24,24,2.6),
+  '<circle cx="24" cy="24" r="18"/>'+[14,24,34].map(y=>[14,24,34].map(x=>D(x,y,2.2)).join('')).join(''),
+  '<circle cx="18" cy="24" r="11"/><circle cx="30" cy="24" r="11"/>'+D(24,24,2.8),
+  '<circle cx="24" cy="24" r="18"/><circle cx="24" cy="24" r="12"/><circle cx="24" cy="24" r="6"/><path d="M24 4v10M24 34v10M4 24h10M34 24h10"/>',
+  ring(12,18,2)+'<circle cx="24" cy="24" r="10"/>'+D(24,24,3),
+  ring(12,19.5,2.1)+ring(6,12,2.1,.52)+'<circle cx="24" cy="24" r="5.5"/>'+D(24,24,2)
  ];
- return `<svg viewBox="0 0 48 48"><defs><linearGradient id="${id}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${a}"/><stop offset="1" stop-color="${b}"/></linearGradient></defs><g fill="url(#${id})">${G[i]}</g></svg>`;
+ return `<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">${G[i]}</svg>`;
 }
 /* ---------- Активность за 7 дней ---------- */
 function renderWeek(){

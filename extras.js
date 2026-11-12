@@ -22,7 +22,7 @@ window.dayHTML=function(k){
  const left=i.p!=null&&i.p>i.n&&k<=t?' · '+(k<t?'не выполнено':'осталось')+': '+(i.p-i.n):'';
  return `<h3>${esc(lab)}</h3><div class="dstat"><div><b>${i.n}${i.p!=null?' / '+i.p:''}</b><span>ВЫПОЛНЕНО</span></div><div><b>+${i.xp}</b><span>XP</span></div><div><b>${pct}%</b><span>АКТИВНОСТЬ</span></div></div><div class="progress"><i style="width:${pct}%"></i></div><div class="tiny muted" style="margin:6px 0 10px">${st}${left}</div>`
  +i.l.map(x=>`<div class="mission"><div style="flex:1"><strong>${esc(x.title)}</strong><div class="missionmeta">${esc(categories[x.category]||x.category)}</div></div><span class="xp">+${x.xp} XP</span></div>`).join('')
- +(meds.length?'<div class="chips">'+meds.map(n=>`<span class="tag">★ ${esc(n)}</span>`).join('')+'</div>':'');
+ +(meds.length?'<div class="chips">'+meds.map(n=>`<span class="tag">● ${esc(n)}</span>`).join('')+'</div>':'');
 };
 window.renderCalendar=function(){
  const el=q('monthGraph');if(!el)return;
@@ -47,7 +47,7 @@ window.renderCalendar=function(){
  ys.forEach(([dd,p2,v])=>{yr+=`<button class="ym${p2===pre?' on':''}" data-jm="${dd.getFullYear()}-${dd.getMonth()}" aria-label="${MN[dd.getMonth()]} ${dd.getFullYear()}: ${v} XP"><i style="height:${Math.max(6,v/mx*100)}%"></i><span>${MN[dd.getMonth()].slice(0,1)}</span></button>`});
  el.innerHTML=`<div class="cal"><div class="chead"><button class="cbtn" data-c="-12" aria-label="Год назад"${atMin?' disabled':''}>«</button><button class="cbtn" data-c="-1" aria-label="Предыдущий месяц"${atMin?' disabled':''}>‹</button><div class="ctitle">${MN[m]} ${y}</div><button class="cbtn" data-c="1" aria-label="Следующий месяц"${atMax?' disabled':''}>›</button><button class="cbtn" data-c="12" aria-label="Год вперёд"${atMax?' disabled':''}>»</button></div>`
  +`<div class="cwd">${['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].map(x=>`<span>${x}</span>`).join('')}</div><div class="cgrid${dir?(dir>0?' slr':' sll'):''}" id="cgrid">${cells}</div>`
- +`<div class="cmeta"><span><b>${ad}</b> акт. дней</span><span><b>${ms}</b> миссий</span><span><b>${mxp}</b> XP</span><button class="cbtn wide" data-c="0">Сегодня</button></div>`
+ +`<div class="cmeta"><span><b>${ad}</b> акт. дней</span><span><b>${ms}</b> задач</span><span><b>${mxp}</b> XP</span><button class="cbtn wide" data-c="0">Сегодня</button></div>`
  +`<div class="dpanel" id="dpanel">${sel&&sel.slice(0,7)===pre?window.dayHTML(sel):'<div class="tiny muted">Нажмите на день, чтобы увидеть подробности</div>'}</div>`
  +`<div class="tiny muted" style="margin:14px 0 6px">12 МЕСЯЦЕВ · XP</div><div class="cyear">${yr}</div><div class="legend tiny muted"><span>меньше</span>${[0,1,2,3,4].map(l=>`<i class="cd l${l}" style="width:12px;height:12px;aspect-ratio:auto"></i>`).join('')}<span>больше</span><span style="margin-left:auto"><u class="ok"></u> день закрыт <u class="no"></u> не выполнено</span></div></div>`;
  dir=0;
@@ -71,7 +71,7 @@ function pickDay(k){
 }
 /* ---------- аватары ---------- */
 const V=300,MAXB=8*1024*1024;
-const dflt=()=>{const ch=(String(state.callsign||'O').trim().charAt(0)||'O').toUpperCase();return `<svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" fill="#0f1417"/><path d="M24 8 37 13.5v9.5c0 8.5-5.5 14-13 17.5C16.500 37 11 31.500 11 23v-9.500z" fill="none" stroke="#b6f23c" stroke-opacity=".55" stroke-width="1.2"/><text x="24" y="29.500" text-anchor="middle" font-family="ui-monospace,Consolas,monospace" font-size="15" font-weight="700" fill="#b6f23c">${esc(ch)}</text></svg>`};
+const dflt=()=>{const ch=(String(state.callsign||'O').trim().charAt(0)||'O').toUpperCase();return `<svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" fill="#fff"/><path d="M24 8 37 13.5v9.5c0 8.5-5.5 14-13 17.5C16.500 37 11 31.500 11 23v-9.500z" fill="none" stroke="#000" stroke-width="1.2"/><text x="24" y="29.500" text-anchor="middle" font-family="ui-monospace,Consolas,monospace" font-size="15" font-weight="700" fill="#000">${esc(ch)}</text></svg>`};
 window.renderAvatars=function(pop){
  const ch=(String(state.callsign||'O').trim().charAt(0)||'O').toUpperCase();
  const sig=(state.avatar?state.avatar.length+':'+state.avatar.slice(-20):'d')+'|'+ch;
@@ -106,14 +106,14 @@ async function pick(e){
 }
 function crop(d){
  const base=V/Math.min(d.w,d.h);E={src:d.src,w:d.w,h:d.h,base,z:1,s:base,ox:(V-d.w*base)/2,oy:(V-d.h*base)/2};
- q('avBody').innerHTML=`<div style="display:grid;place-items:center;margin:12px 0"><canvas id="avCv" width="${V}" height="${V}" style="width:100%;max-width:${V}px;touch-action:none;border-radius:14px;cursor:grab;background:#0b0e10"></canvas></div><div class="row" style="gap:12px"><input id="avZ" type="range" min="1" max="4" step=".01" value="1" style="flex:1" aria-label="Масштаб"><span class="av" style="--s:56px"><canvas id="avPv" width="56" height="56"></canvas></span></div><div class="tiny muted" style="margin:8px 0 12px">Перетащите фото и выберите масштаб</div><div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start"><button class="btn" id="avSave">Сохранить</button><label class="btn ghost" style="margin:0;cursor:pointer;display:inline-block">Другое<input type="file" id="avFile" accept="image/jpeg,image/png,image/webp" hidden></label><button class="btn ghost" id="avBack">Отмена</button></div>`;
+ q('avBody').innerHTML=`<div style="display:grid;place-items:center;margin:12px 0"><canvas id="avCv" width="${V}" height="${V}" style="width:100%;max-width:${V}px;touch-action:none;border-radius:14px;cursor:grab;background:#f5f5f5"></canvas></div><div class="row" style="gap:12px"><input id="avZ" type="range" min="1" max="4" step=".01" value="1" style="flex:1" aria-label="Масштаб"><span class="av" style="--s:56px"><canvas id="avPv" width="56" height="56"></canvas></span></div><div class="tiny muted" style="margin:8px 0 12px">Перетащите фото и выберите масштаб</div><div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start"><button class="btn" id="avSave">Сохранить</button><label class="btn ghost" style="margin:0;cursor:pointer;display:inline-block">Другое<input type="file" id="avFile" accept="image/jpeg,image/png,image/webp" hidden></label><button class="btn ghost" id="avBack">Отмена</button></div>`;
  q('avFile').onchange=pick;q('avBack').onclick=avHome;
  const cv=q('avCv'),pv=q('avPv'),cx=cv.getContext('2d'),px=pv.getContext('2d');
  const clamp=()=>{E.ox=Math.min(0,Math.max(V-E.w*E.s,E.ox));E.oy=Math.min(0,Math.max(V-E.h*E.s,E.oy))};
  const draw=()=>{
   clamp();cx.clearRect(0,0,V,V);cx.drawImage(E.src,E.ox,E.oy,E.w*E.s,E.h*E.s);
-  cx.save();cx.fillStyle='rgba(8,9,11,.62)';cx.beginPath();cx.rect(0,0,V,V);cx.arc(V/2,V/2,V/2-6,0,7,true);cx.fill('evenodd');cx.restore();
-  cx.strokeStyle='rgba(182,242,60,.7)';cx.lineWidth=1.5;cx.beginPath();cx.arc(V/2,V/2,V/2-6,0,7);cx.stroke();
+  cx.save();cx.fillStyle='rgba(255,255,255,.72)';cx.beginPath();cx.rect(0,0,V,V);cx.arc(V/2,V/2,V/2-6,0,7,true);cx.fill('evenodd');cx.restore();
+  cx.strokeStyle='#000';cx.lineWidth=1.5;cx.beginPath();cx.arc(V/2,V/2,V/2-6,0,7);cx.stroke();
   px.clearRect(0,0,56,56);px.drawImage(E.src,-E.ox/E.s,-E.oy/E.s,V/E.s,V/E.s,0,0,56,56);
  };
  draw();
@@ -143,7 +143,15 @@ window.fxGain=function(t){
 };
 window.fxRank=function(i){
  if(RM())return;const d=document.createElement('div');d.className='fxr';
- d.innerHTML='<b>НОВЫЙ РАНГ</b>'+crest(i)+'<strong>'+esc(rankNames[i])+'</strong>';document.body.appendChild(d);setTimeout(()=>d.remove(),2600);
+ d.innerHTML='<b>НОВЫЙ РАНГ</b><div class="crest" style="width:120px;height:120px">'+crest(i)+'</div>'+'<strong>'+esc(rankNames[i])+'</strong>';document.body.appendChild(d);setTimeout(()=>d.remove(),2600);
+};
+
+/* ---------- точечные цифры (дот-матрица) ---------- */
+const DG={0:['01110','10001','10011','10101','11001','10001','01110'],1:['00100','01100','00100','00100','00100','00100','01110'],2:['01110','10001','00001','00010','00100','01000','11111'],3:['11110','00001','00001','01110','00001','00001','11110'],4:['00010','00110','01010','10010','11111','00010','00010'],5:['11111','10000','11110','00001','00001','10001','01110'],6:['00110','01000','10000','11110','10001','10001','01110'],7:['11111','00001','00010','00100','01000','01000','01000'],8:['01110','10001','10001','01110','10001','10001','01110'],9:['01110','10001','10001','01111','00001','00010','01100']};
+window.dotNum=function(v){
+ const s=String(Math.max(0,Math.floor(+v||0))),W=s.length*6-1;let c='';
+ [...s].forEach((ch,n)=>DG[ch].forEach((row,y)=>[...row].forEach((b,x)=>{if(b==='1')c+='<circle cx="'+(n*6+x+.5)+'" cy="'+(y+.5)+'" r=".4"/>'})));
+ return '<svg class="dn" viewBox="0 0 '+W+' 7" fill="currentColor" role="img" aria-label="'+s+'" style="aspect-ratio:'+W+'/7">'+c+'</svg>';
 };
 /* ---------- события ---------- */
 document.addEventListener('click',e=>{
