@@ -70,7 +70,8 @@ function pickDay(k){
  p.classList.remove('dp');void p.offsetWidth;p.classList.add('dp');
 }
 /* ---------- аватары ---------- */
-const V=300,MAXB=8*1024*1024;
+const V=300,ACCEPT='image/*,.heic,.heif,.avif';
+const isImg=f=>/^image\//.test(f.type)||/\.(jpe?g|png|webp|heic|heif|avif|gif)$/i.test(f.name);
 const dflt=()=>{const ch=(String(state.callsign||'O').trim().charAt(0)||'O').toUpperCase();return `<svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" style="fill:var(--surf)"/><path d="M24 8 37 13.5v9.5c0 8.5-5.5 14-13 17.5C16.500 37 11 31.500 11 23v-9.500z" fill="none" stroke="currentColor" stroke-width="1.2"/><text x="24" y="29.500" text-anchor="middle" font-family="ui-monospace,Consolas,monospace" font-size="15" font-weight="700" fill="currentColor">${esc(ch)}</text></svg>`};
 window.renderAvatars=function(pop){
  const ch=(String(state.callsign||'O').trim().charAt(0)||'O').toUpperCase();
@@ -84,29 +85,32 @@ window.renderAvatars=function(pop){
 async function decode(f){
  let s=null;
  try{s=await createImageBitmap(f,{imageOrientation:'from-image'})}catch(_){
-  s=await new Promise((res,rej)=>{const u=URL.createObjectURL(f),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i)};i.onerror=()=>{URL.revokeObjectURL(u);rej()};i.src=u});
+  try{s=await new Promise((res,rej)=>{const u=URL.createObjectURL(f),i=new Image();i.onload=()=>{URL.revokeObjectURL(u);res(i)};i.onerror=()=>{URL.revokeObjectURL(u);rej()};i.src=u})}
+  catch(__){s=await createImageBitmap(f,{resizeWidth:2400,resizeQuality:'high'})} // очень большое фото: уменьшаем только для обрезки, оригинал не трогаем
  }
  return {src:s,w:s.width||s.naturalWidth,h:s.height||s.naturalHeight};
 }
 function avHome(){
  E=null;
- q('avBody').innerHTML=`<div style="display:grid;place-items:center;margin:16px 0"><span class="av" style="--s:112px">${state.avatar?`<img class="in" alt="" src="${state.avatar}">`:dflt()}</span></div><div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start"><label class="btn" style="margin:0;cursor:pointer;display:inline-block">${state.avatar?'Заменить':'Выбрать фото'}<input type="file" id="avFile" accept="image/jpeg,image/png,image/webp" hidden></label>${state.avatar?'<button class="btn ghost" id="avDel">Удалить</button>':''}<button class="btn ghost" onclick="closeModal()">Закрыть</button></div>`;
+ q('avBody').innerHTML=`<div style="display:grid;place-items:center;margin:16px 0"><span class="av" style="--s:112px">${state.avatar?`<img class="in" alt="" src="${state.avatar}">`:dflt()}</span></div><div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start"><label class="btn" style="margin:0;cursor:pointer;display:inline-block">${state.avatar?'Заменить':'Выбрать фото'}<input type="file" id="avFile" accept="${ACCEPT}" hidden></label>${state.avatar?'<button class="btn ghost" id="avDel">Удалить</button>':''}<button class="btn ghost" onclick="closeModal()">Закрыть</button></div>`;
  q('avFile').onchange=pick;
- const d=q('avDel');if(d)d.onclick=()=>{delete state.avatar;save();window.renderAvatars();closeModal();toast('Аватар удалён')};
+ const o=state.avatarOrig;if(o&&window.FormUpload)q('avBody').insertAdjacentHTML('beforeend','<div class="tiny muted" style="margin-top:12px">Оригинал в облаке: '+esc(o.name||'фото')+' · '+FormUpload.sizeText(o.size)+'</div>');
+ const d=q('avDel');if(d)d.onclick=()=>{if(state.avatarOrig){window.FormUpload&&FormUpload.remove(state.avatarOrig.path);delete state.avatarOrig}delete state.avatar;save();window.renderAvatars();closeModal();toast('Аватар удалён')};
 }
-window.openAvatar=function(){q('modal').innerHTML='<h3>АВАТАР</h3><div class="tiny muted">JPG, PNG или WebP · до 8 МБ</div><div id="avBody"></div>';avHome();showModal()};
+window.openAvatar=function(){q('modal').innerHTML='<h3>АВАТАР</h3><div class="tiny muted">JPG, PNG, WebP, HEIC · любой размер · оригинал сохраняется в облаке</div><div id="avBody"></div>';avHome();showModal()};
 async function pick(e){
  const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
- const ok=/^image\/(jpeg|png|webp)$/.test(f.type)||(!f.type&&/\.(jpe?g|png|webp)$/i.test(f.name));
- if(!ok)return toast('Формат не поддерживается: нужен JPG, PNG или WebP');
- if(f.size>MAXB)return toast('Файл больше 8 МБ');
- let d;try{d=await decode(f)}catch(_){return toast('Не удалось открыть изображение')}
- if(!d.w||!d.h||d.w*d.h>80e6)return toast('Изображение слишком большое или повреждено');
- crop(d);
+ if(!isImg(f))return toast('Это не изображение');
+ let d=null;try{d=await decode(f)}catch(_){}
+ if(!d||!d.w||!d.h){ // формат не читается браузером (например HEIC): аватар не меняем, оригинал всё равно загружаем
+  if(!(window.FormUpload&&FormUpload.available()))return toast('Не удалось открыть изображение');
+  toast('Предпросмотр недоступен для этого формата: загружаю оригинал');return upPanel(f,false);
+ }
+ crop(d,f);
 }
-function crop(d){
- const base=V/Math.min(d.w,d.h);E={src:d.src,w:d.w,h:d.h,base,z:1,s:base,ox:(V-d.w*base)/2,oy:(V-d.h*base)/2};
- q('avBody').innerHTML=`<div style="display:grid;place-items:center;margin:12px 0"><canvas id="avCv" width="${V}" height="${V}" style="width:100%;max-width:${V}px;touch-action:none;border-radius:14px;cursor:grab;background:var(--bg2)"></canvas></div><div class="row" style="gap:12px"><input id="avZ" type="range" min="1" max="4" step=".01" value="1" style="flex:1" aria-label="Масштаб"><span class="av" style="--s:56px"><canvas id="avPv" width="56" height="56"></canvas></span></div><div class="tiny muted" style="margin:8px 0 12px">Перетащите фото и выберите масштаб</div><div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start"><button class="btn" id="avSave">Сохранить</button><label class="btn ghost" style="margin:0;cursor:pointer;display:inline-block">Другое<input type="file" id="avFile" accept="image/jpeg,image/png,image/webp" hidden></label><button class="btn ghost" id="avBack">Отмена</button></div>`;
+function crop(d,file){
+ const base=V/Math.min(d.w,d.h);E={file,src:d.src,w:d.w,h:d.h,base,z:1,s:base,ox:(V-d.w*base)/2,oy:(V-d.h*base)/2};
+ q('avBody').innerHTML=`<div style="display:grid;place-items:center;margin:12px 0"><canvas id="avCv" width="${V}" height="${V}" style="width:100%;max-width:${V}px;touch-action:none;border-radius:14px;cursor:grab;background:var(--bg2)"></canvas></div><div class="row" style="gap:12px"><input id="avZ" type="range" min="1" max="4" step=".01" value="1" style="flex:1" aria-label="Масштаб"><span class="av" style="--s:56px"><canvas id="avPv" width="56" height="56"></canvas></span></div><div class="tiny muted" style="margin:8px 0 12px">Перетащите фото и выберите масштаб</div><div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start"><button class="btn" id="avSave">Сохранить</button><label class="btn ghost" style="margin:0;cursor:pointer;display:inline-block">Другое<input type="file" id="avFile" accept="${ACCEPT}" hidden></label><button class="btn ghost" id="avBack">Отмена</button></div>`;
  q('avFile').onchange=pick;q('avBack').onclick=avHome;
  const cv=q('avCv'),pv=q('avPv'),cx=cv.getContext('2d'),px=pv.getContext('2d');
  const clamp=()=>{E.ox=Math.min(0,Math.max(V-E.w*E.s,E.ox));E.oy=Math.min(0,Math.max(V-E.h*E.s,E.oy))};
@@ -130,9 +134,35 @@ function crop(d){
    c.drawImage(E.src,-E.ox/E.s,-E.oy/E.s,V/E.s,V/E.s,0,0,256,256);
    let u=o.toDataURL('image/webp',.86);if(u.indexOf('data:image/webp')!==0)u=o.toDataURL('image/jpeg',.88);
    if(u.length>280000)u=o.toDataURL('image/jpeg',.7);
-   state.avatar=u;save();window.renderAvatars(true);closeModal();toast('Аватар сохранён');
+   state.avatar=u;save();window.renderAvatars(true);
+   if(E.file&&window.FormUpload&&FormUpload.available())upPanel(E.file,true);else{closeModal();toast('Аватар сохранён')}
   }catch(_){toast('Не удалось сохранить изображение')}
  };
+}
+/* ---------- загрузка оригинала: прогресс, отмена, повтор ---------- */
+let UP=null;
+function upPanel(file,thumbSaved){
+ const S=FormUpload.sizeText,tm=n=>n==null||!isFinite(n)?'':n<60?Math.ceil(n)+' с':Math.ceil(n/60)+' мин';
+ q('modal').innerHTML='<h3>ОРИГИНАЛ</h3>'+(thumbSaved?'<div class="tiny muted" style="margin-bottom:8px">Аватар сохранён. Оригинал загружается в облако в исходном качестве.</div>':'')+
+  '<div class="up"><div class="row"><b class="upn">'+esc(file.name||'фото')+'</b><span id="upPct" class="tiny">0%</span></div><div class="upbar"><i id="upBar"></i></div><div class="tiny muted" id="upInfo">Подготовка…</div><div class="row" style="gap:8px;justify-content:flex-start;margin-top:14px;flex-wrap:wrap"><button class="btn ghost" id="upCancel">Отмена</button><button class="btn" id="upRetry" hidden>Повторить</button><button class="btn ghost" onclick="closeModal()">Закрыть</button></div></div>';
+ const g=id=>q(id),old=state.avatarOrig;
+ const ui=(pct,info)=>{const b=g('upBar');if(!b)return;b.style.width=pct+'%';g('upPct').textContent=Math.floor(pct)+'%';g('upInfo').textContent=info};
+ UP=FormUpload.start(file,{
+  onProgress:p=>ui(p.pct,S(p.loaded)+' из '+S(p.total)+(p.speed?' · '+S(p.speed)+'/с':'')+(p.eta?' · ещё '+tm(p.eta):'')),
+  onState:(st,x)=>{
+   const c=g('upCancel'),rt=g('upRetry');
+   if(c)c.hidden=st!=='uploading';if(rt)rt.hidden=!(st==='error'||st==='cancelled');
+   if(st==='uploading'&&g('upBar'))g('upBar').classList.remove('err');
+   if(st==='error'){if(g('upBar'))g('upBar').classList.add('err');if(g('upInfo'))g('upInfo').textContent=x.message;toast('Загрузка оригинала не завершена')}
+   if(st==='cancelled'&&g('upInfo'))g('upInfo').textContent='Отменено';
+   if(st==='done'){
+    state.avatarOrig={path:x.path,name:String(x.name||'').slice(0,100),size:x.size,at:Date.now()};save();
+    if(old&&old.path&&old.path!==x.path)FormUpload.remove(old.path); // заменённый оригинал удаляем, хранилище не растёт
+    ui(100,'Готово · '+S(x.size));toast('Оригинал загружен');UP=null;
+   }
+  }
+ });
+ g('upCancel').onclick=()=>UP&&UP.cancel();g('upRetry').onclick=()=>UP&&UP.retry();
 }
 /* ---------- эффекты ---------- */
 let lp={x:innerWidth/2,y:innerHeight/2};
@@ -194,4 +224,25 @@ window.fxBadge=function(kind,text){
  const el=document.createElement('div');el.className='fxb';el.innerHTML='<i></i><div><small>'+esc(kind)+'</small><b>'+esc(text)+'</b></div>';
  c.appendChild(el);setTimeout(()=>el.remove(),3300);return true;
 };
+})();
+
+/* ---------- v0.07: рябь на кнопках, всплески при наградах ---------- */
+(function(){
+'use strict';
+const RM=()=>!!(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches);
+document.addEventListener('pointerdown',e=>{
+ if(RM())return;const b=e.target.closest&&e.target.closest('.btn,.au-btn');if(!b||b.disabled)return;
+ const r=b.getBoundingClientRect(),d=Math.max(r.width,r.height)*2,s=document.createElement('span');
+ s.className='rip';s.style.cssText='width:'+d+'px;height:'+d+'px;left:'+(e.clientX-r.left-d/2)+'px;top:'+(e.clientY-r.top-d/2)+'px';
+ b.appendChild(s);setTimeout(()=>s.remove(),600);
+},true);
+function burst(x,y,n){
+ if(RM())return;
+ for(let i=0;i<n;i++){const a=Math.PI*2*i/n+Math.random()*.4,l=40+Math.random()*50,p=document.createElement('i');
+  p.className='pbit';p.style.cssText='left:'+x+'px;top:'+y+'px;--dx:'+Math.cos(a)*l+'px;--dy:'+Math.sin(a)*l+'px';
+  document.body.appendChild(p);setTimeout(()=>p.remove(),900)}
+}
+const g=window.fxGain,r=window.fxRank;
+window.fxGain=function(t){g&&g(t);const e=document.querySelector('.fxg');if(e)burst(parseFloat(e.style.left)||innerWidth/2,parseFloat(e.style.top)||innerHeight/2,8)};
+window.fxRank=function(i){r&&r(i);burst(innerWidth/2,innerHeight/2,28)};
 })();

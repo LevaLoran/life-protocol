@@ -172,3 +172,64 @@ label{display:block;font:11px var(--mono);letter-spacing:.06em;text-transform:up
 .skill .progress i{animation:none}
 @media(min-width:900px){.nav button{gap:12px}.iconbtn.edit:hover{color:var(--ink)}}
 @media(prefers-reduced-motion:reduce){#splash{display:none!important}}
+
+/* ===== v0.07: вход, загрузка, скелетоны, анимации ===== */
+/* пока вход не подтверждён, приложение не показывается */
+html:not([data-auth=in]) .app,html:not([data-auth=in]) .nav,html:not([data-auth=in]) #modalBack{display:none!important}
+html[data-auth=in] #auth{display:none}
+html[data-auth=in] body{padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+html:not([data-auth=in]) body{padding-bottom:0}
+#auth{position:fixed;inset:0;z-index:50;background:var(--bg);display:grid;place-items:center;padding:20px;overflow:auto}
+.au-grid{position:absolute;inset:0;background-image:radial-gradient(var(--line) 1.2px,transparent 1.4px);background-size:22px 22px;-webkit-mask:radial-gradient(ellipse at center,#000 20%,transparent 75%);mask:radial-gradient(ellipse at center,#000 20%,transparent 75%);opacity:.9}
+.au-card{position:relative;width:min(100%,380px);display:flex;flex-direction:column;align-items:stretch;gap:12px;text-align:center}
+.au-orbit{position:relative;width:96px;height:96px;margin:0 auto 6px}
+.au-orbit i{position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px;border-radius:50%;background:var(--ink);transform:rotate(calc(var(--i)*30deg)) translateY(-42px)}
+.au-orbit b{position:absolute;left:50%;top:50%;width:16px;height:16px;margin:-8px;border-radius:50%;background:var(--acc)}
+.au-word{font:800 56px/1 var(--sans);letter-spacing:-.04em;margin:0}.au-word em{font-style:normal;color:var(--acc)}
+.au-tag{font:11px var(--mono);letter-spacing:.38em;color:var(--mut);padding-left:.38em}
+.au-sub{color:var(--mut);font-size:14px;margin:6px 0 12px}
+.au-btn{position:relative;display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:14px 18px;min-height:52px;border-radius:6px;border:1px solid var(--line);background:var(--surf);color:var(--ink);font:600 15px var(--sans);overflow:hidden}
+.au-btn svg{width:20px;height:20px;flex:none}
+.au-btn:disabled{opacity:.55;cursor:not-allowed}.au-btn.busy{opacity:1}
+.au-spin{display:none;position:absolute;right:16px;width:16px;height:16px;border-radius:50%;border:2px solid var(--line);border-top-color:var(--acc)}.au-btn.busy .au-spin{display:block}
+.au-err{margin:0;padding:10px 12px;border:1px solid #d33;border-radius:4px;color:#d33;font:12px/1.4 var(--mono);text-align:left}[data-theme=dark] .au-err{color:#ff7b7b;border-color:#ff7b7b}
+.au-note{margin:8px 0 0;font:11px/1.5 var(--mono);color:var(--mut)}
+.au-load{position:absolute;left:0;right:0;top:0;height:2px;overflow:hidden;display:none}.au-load i{display:block;width:40%;height:100%;background:var(--acc)}
+html[data-auth=checking] .au-load{display:block}
+html[data-auth=checking] .au-card{visibility:hidden}
+/* аккаунт */
+.acc{border:1px solid var(--line);border-radius:4px;padding:14px}.acc-n{font-weight:700;word-break:break-word}
+/* скелетон при запуске */
+#skel{display:none}
+html.hydrating #skel{display:block;padding-top:24px}html.hydrating main{display:none}
+.sk{display:block;height:16px;border-radius:3px;background:var(--bg2);position:relative;overflow:hidden;margin:0 0 14px}
+.sk.w40{width:40%;height:34px;margin-bottom:18px}.sk.w70{width:70%;margin-top:26px}.sk.blk{height:132px}.sk.line{height:44px}.sk-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}.sk-row .sk{height:72px}
+.sk::after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,var(--line),transparent);transform:translateX(-100%)}
+/* загрузка оригинала */
+.upn{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.upbar{height:8px;background:var(--bg2);border-radius:4px;margin:12px 0 8px;overflow:hidden}
+.upbar i{display:block;height:100%;width:0;background:var(--acc);border-radius:4px;transition:width .35s ease}.upbar i.err{background:#d33}
+/* микровзаимодействия */
+.btn,.au-btn{position:relative;overflow:hidden}
+.rip{position:absolute;border-radius:50%;background:currentColor;opacity:.18;transform:scale(0);pointer-events:none}
+.pbit{position:fixed;z-index:60;width:6px;height:6px;margin:-3px;border-radius:50%;background:var(--acc);pointer-events:none}
+@media(prefers-reduced-motion:no-preference){
+ @keyframes auIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+ @keyframes auDot{from{opacity:0;transform:rotate(calc(var(--i)*30deg)) translateY(-20px) scale(.2)}to{opacity:1;transform:rotate(calc(var(--i)*30deg)) translateY(-42px)}}
+ @keyframes auSpin{to{transform:rotate(360deg)}}@keyframes auBar{from{transform:translateX(-100%)}to{transform:translateX(260%)}}
+ @keyframes skl{to{transform:translateX(100%)}}@keyframes rip{to{transform:scale(1);opacity:0}}@keyframes pbit{to{transform:translate(var(--dx),var(--dy)) scale(.2);opacity:0}}
+ @keyframes orb{to{transform:rotate(360deg)}}@keyframes lst{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+ .au-card>*{animation:auIn .6s cubic-bezier(.2,.8,.2,1) both}.au-card>:nth-child(2){animation-delay:.08s}.au-card>:nth-child(3){animation-delay:.14s}.au-card>:nth-child(4){animation-delay:.2s}.au-card>:nth-child(5){animation-delay:.28s}.au-card>:nth-child(6){animation-delay:.36s}
+ .au-orbit i{animation:auDot .6s cubic-bezier(.3,1.3,.5,1) both;animation-delay:calc(var(--i)*40ms + .1s)}.au-orbit{animation:orb 40s linear infinite}
+ .au-spin{animation:auSpin .7s linear infinite}.au-load i{animation:auBar 1.1s ease-in-out infinite}.sk::after{animation:skl 1.2s infinite}
+ .rip{animation:rip .55s ease-out forwards}.pbit{animation:pbit .8s cubic-bezier(.2,.7,.3,1) forwards}
+ .mission{animation:lst .32s ease both}.mission:nth-child(2){animation-delay:.04s}.mission:nth-child(3){animation-delay:.08s}.mission:nth-child(4){animation-delay:.12s}
+ .screen.active{animation-timing-function:cubic-bezier(.2,.8,.2,1)}
+ .modalback{backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}.modalback.show .modal{animation:sheet .32s cubic-bezier(.2,.9,.25,1.05)}
+ .upbar i{background-image:linear-gradient(90deg,transparent,#ffffff55,transparent);background-size:60px 100%;background-repeat:no-repeat;animation:skl 1.4s linear infinite;background-color:var(--acc)}
+ .au-btn,.rankcard,.mc,.rcard,.nextrank{transition:transform .2s cubic-bezier(.2,.8,.2,1),box-shadow .2s,border-color .2s,background .2s}
+ .au-btn:active{transform:scale(.98)}
+}
+@media(hover:hover)and(prefers-reduced-motion:no-preference){.au-btn:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 8px 24px -12px var(--ink);border-color:var(--ink)}.mc:hover,.rcard:hover,.nextrank:hover{transform:translateY(-2px)}.mission{transition:background .2s}.mission:hover{background:var(--bg2)}}
+@media(prefers-reduced-motion:reduce){.au-load i{width:100%}.sk::after{display:none}}
+@media(max-height:560px){.au-orbit{display:none}.au-word{font-size:44px}}

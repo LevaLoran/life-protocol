@@ -15,7 +15,8 @@ const skillMap={HEALTH:'FITNESS',FITNESS:'FITNESS',EDUCATION:'INTELLIGENCE',PROD
 const skillNames={INTELLIGENCE:'INTELLIGENCE',DISCIPLINE:'DISCIPLINE',FITNESS:'FITNESS',CREATIVITY:'CREATIVITY',SOCIAL:'SOCIAL',TECHNICAL:'TECHNICAL'};
 const actLvl=n=>n<=0?0:n<=2?1:n<=4?2:n<=7?3:4;
 // Ключи хранилища (lifeProtocol / lifeProtocolDB) намеренно не менялись при переименовании в FORM.: иначе сохранённый прогресс пропал бы.
-const DAILY_LIMIT=10, XP_PER_MISSION=5, STORAGE_KEY='lifeProtocol';
+const DAILY_LIMIT=10, XP_PER_MISSION=5;
+let STORAGE_KEY='lifeProtocol',IDB_KEY='state'; // у первого аккаунта на устройстве ключи прежние (старый прогресс сохраняется), у остальных с суффиксом id
 const has=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 const medalDefs=[
  ['ПЕРВЫЙ ШАГ','Первая выполненная задача',s=>s.completed.length>=1,'●'],
@@ -87,11 +88,12 @@ function normalize(raw){
  s.lastRank=rankIndex(s.xp);
  s.days={};if(d.days&&typeof d.days==='object')Object.keys(d.days).forEach(k=>{const p=d.days[k]&&+d.days[k].p;if(DATE_RE.test(k)&&Number.isFinite(p)&&p>=0&&p<=50)s.days[k]={p:Math.floor(p)}});
  s.medalDates={};if(d.medalDates&&typeof d.medalDates==='object')names.forEach(n=>{const o=Object.keys(medalMig).find(k=>medalMig[k]===n&&d.medalDates[k]),v=d.medalDates[n]||(o&&d.medalDates[o]);if(DATE_RE.test(String(v)))s.medalDates[n]=v});
+ const ao=d.avatarOrig;if(ao&&typeof ao==='object'&&typeof ao.path==='string'&&ao.path.length<200)s.avatarOrig={path:ao.path,name:String(ao.name||'').slice(0,100),size:Math.max(0,+ao.size||0),at:+ao.at||0};else delete s.avatarOrig;
  if(typeof s.avatar!=='string'||s.avatar.length>300000||!/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+\/=]+$/.test(s.avatar))delete s.avatar;
  return s;
 }
 let state=load();
-const APP_VERSION='Бета 0.06',DB_NAME='lifeProtocolDB',DB_VER=1;
+const APP_VERSION='Бета 0.07',DB_NAME='lifeProtocolDB',DB_VER=1;
 let dbp=null,ready=false,idbOk=true;
 const getDb=()=>dbp||(dbp=new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VER);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('kv'))r.result.createObjectStore('kv')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
 const idbGet=k=>getDb().then(db=>new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}));
@@ -107,11 +109,19 @@ function save(){
  if(!ready)return; // до загрузки данных ничего не пишем: нельзя затереть прогресс пустым состоянием
  state.updated=Date.now();
  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}catch(e){}
- if(idbOk)idbSet('state',state).catch(()=>{idbOk=false;toast('IndexedDB недоступна: данные в localStorage')});
+ if(idbOk)idbSet(IDB_KEY,state).catch(()=>{idbOk=false;toast('IndexedDB недоступна: данные в localStorage')});
 }
+/* Данные привязаны к аккаунту: первый вошедший на устройстве получает прежний локальный прогресс, остальные — свои хранилища */
+window.formSetUser=function(u){
+ let o=null;try{o=localStorage.getItem('formOwner')}catch(e){}
+ const id=cleanId(u&&u.id);if(!id)throw new Error('no user');
+ if(!o){o=id;try{localStorage.setItem('formOwner',o)}catch(e){}}
+ if(id!==o){STORAGE_KEY='lifeProtocol:'+id;IDB_KEY='state:'+id}
+ state=load();
+};
 async function boot(){
  let a=null,b=null;
- try{a=await idbGet('state')}catch(e){idbOk=false}
+ try{a=await idbGet(IDB_KEY)}catch(e){idbOk=false}
  try{b=JSON.parse(localStorage.getItem(STORAGE_KEY)||'null')}catch(e){}
  // миграция: берём самую свежую копию (IndexedDB или localStorage Beta 0.01); ничего не удаляем
  const c=[a,b].filter(x=>x&&typeof x==='object').sort((x,y)=>(y.updated||0)-(x.updated||0)||(y.xp||0)-(x.xp||0));
@@ -336,7 +346,7 @@ function closeModal(){
  if(TV.sel){const s=TV.sel;TV.sel=null;renderTree();const n=document.querySelector(`.tnode[data-c="${s.slice(0,-1)}"][data-t="${s.slice(-1)}"]`);if(n)n.focus({preventScroll:true})}
 }
 function openSettings(){
- $('modal').innerHTML=`<h3>Настройки</h3><label>Имя</label><input class="field" id="settingCall" maxlength="18" value="${esc(state.callsign)}"><p class="sub">Данные сохраняются в локальном хранилище браузера. Установка: открой сайт в браузере телефона и выбери «Добавить на главный экран».</p><div class="row" style="margin-top:16px"><button class="btn ghost" onclick="closeModal()">Закрыть</button><button class="btn" onclick="saveSettings()">Сохранить</button></div>`;
+ $('modal').innerHTML=`<h3>Настройки</h3><label>Имя</label><input class="field" id="settingCall" maxlength="18" value="${esc(state.callsign)}"><p class="sub">Прогресс хранится в браузере этого устройства и привязан к твоему аккаунту. Установка: открой сайт в браузере телефона и выбери «Добавить на главный экран».</p><div class="row" style="margin-top:16px"><button class="btn ghost" onclick="closeModal()">Закрыть</button><button class="btn" onclick="saveSettings()">Сохранить</button></div><button class="btn ghost small" style="margin-top:12px" onclick="formSignOut()">Выйти из аккаунта</button>`;
  showModal();
 }
 function saveSettings(){state.callsign=$('settingCall').value.trim()||'ПОЛЬЗОВАТЕЛЬ';save();closeModal();render()}
@@ -512,4 +522,4 @@ if('serviceWorker'in navigator){
 // PWA может часами лежать в фоне: пересчитываем день при возврате и по таймеру
 document.addEventListener('visibilitychange',()=>{if(!document.hidden&&today()!==currentDay)render()});
 setInterval(()=>{if(today()!==currentDay)render()},30000);
-boot();
+window.__boot=boot; // запускается из auth.js только после успешной проверки входа

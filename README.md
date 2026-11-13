@@ -1,4 +1,4 @@
-# FORM. — SHAPE YOURSELF (Beta 0.06)
+# FORM. — SHAPE YOURSELF (Beta 0.07)
 
 Mobile-first installable web app (PWA) for real-life missions and RPG progression.
 
@@ -24,7 +24,7 @@ Open `http://localhost:8000`. Service worker and `crypto.randomUUID` need HTTPS 
 - PWA: manifest, PNG icons, network-first service worker (always fresh online, works offline).
 
 ## Limitations
-- Data lives in the browser's localStorage on this device and does not sync.
+- Progress lives in the browser (IndexedDB + localStorage) on this device and does not sync between devices; it is tied to the signed-in account. Only photo originals go to the cloud.
 - Briefings, report and mission suggestions are local logic, not a generative AI. For real AI add a backend endpoint; never put an API key in `app.js`.
 - Rank XP thresholds are editable in `app.js` (`rankThresholds`).
 
@@ -66,3 +66,20 @@ Open `http://localhost:8000`. Service worker and `crypto.randomUUID` need HTTPS 
 - Skill tree rebuilt: 3 directions x 6 branches x 3 tiers, pan (drag) and zoom (+/-, Ctrl+wheel), branch shortcuts, detail panel with conditions and thresholds. Unlock rules and thresholds are unchanged.
 - Fixes: skill-unlock toast was overwritten by the task toast; dead code in `renderGraphs`; default avatar and image cropper ignored the theme.
 - Service worker cache `form-b009` (old `life-protocol-*` caches are removed automatically).
+
+## Beta 0.07 — вход, облако для фото, анимации
+- **Обязательный вход** через Google и GitHub (Supabase Auth, PKCE). Без подтверждённой сессии интерфейс приложения не показывается и не запускается; при каждом старте сессия проверяется на сервере (`getUser`), при недоступной сети используется сохранённая. Выход — в Профиле и Настройках.
+- **Данные по аккаунтам:** первый вошедший на устройстве получает прежний локальный прогресс (ключи `lifeProtocol`/`lifeProtocolDB` не менялись), другие аккаунты на том же устройстве — свои отдельные хранилища.
+- **Фото без лимита 8 МБ:** ни в интерфейсе, ни в коде размера нет. Оригинал уходит в приватный бакет `photos` по протоколу TUS (куски по 6 МБ, продолжение с места обрыва), с прогрессом, скоростью, отменой и повтором. Аватар (256 px) по-прежнему хранится локально; HEIC и другие форматы, которые браузер не читает, загружаются как оригинал без обрезки. Предыдущий оригинал заменяется, хранилище не растёт.
+- Новые анимации: экран входа, скелетоны при запуске, рябь на кнопках, всплески при награде и новом ранге, плавные списки и модальные окна. Всё отключается при Reduce Motion.
+- Кэш сервис-воркера `form-b010`.
+
+### Настройка входа и облака (один раз)
+1. Создайте проект на supabase.com.
+2. **Authentication → Providers:** включите Google и GitHub. Client ID и Client Secret вставляйте только сюда (это секреты, в код и репозиторий они не попадают). В настройках OAuth-приложений Google и GitHub укажите callback `https://<project-ref>.supabase.co/auth/v1/callback`.
+3. **Authentication → URL Configuration:** Site URL = адрес вашего сайта на GitHub Pages; в Redirect URLs добавьте тот же адрес (и `http://localhost:8000/` для разработки).
+4. **SQL Editor:** выполните `supabase/setup.sql` (приватный бакет, доступ только владельцу, защита от переполнения: 2 ГБ на пользователя).
+5. **Лимит размера файла:** задаётся только проектом. На бесплатном тарифе Supabase это 50 МБ на файл; чтобы принимать больше, перейдите на платный тариф и поднимите *Storage → Settings → Upload file size limit*. Приложение лимитов не добавляет.
+6. **GitHub → Settings → Secrets and variables → Actions → Variables:** добавьте `SUPABASE_URL` и `SUPABASE_ANON_KEY` (публичный anon/publishable ключ). Workflow при деплое сам запишет их в `config.js`. Для локального запуска впишите те же значения в `config.js`.
+
+Секреты (`client secret`, `service_role`) в клиентский код и в переменные репозитория не кладутся. Защита данных в облаке держится на политиках RLS из `setup.sql`; сама страница статическая, поэтому «закрыт» от гостей интерфейс, а не файлы сайта.
