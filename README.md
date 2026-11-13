@@ -1,4 +1,4 @@
-# FORM. — SHAPE YOURSELF (Beta 0.07)
+# FORM. — SHAPE YOURSELF (Beta 0.08)
 
 Mobile-first installable web app (PWA) for real-life missions and RPG progression.
 
@@ -83,3 +83,9 @@ Open `http://localhost:8000`. Service worker and `crypto.randomUUID` need HTTPS 
 6. **GitHub → Settings → Secrets and variables → Actions → Variables:** добавьте `SUPABASE_URL` и `SUPABASE_ANON_KEY` (публичный anon/publishable ключ). Workflow при деплое сам запишет их в `config.js`. Для локального запуска впишите те же значения в `config.js`.
 
 Секреты (`client secret`, `service_role`) в клиентский код и в переменные репозитория не кладутся. Защита данных в облаке держится на политиках RLS из `setup.sql`; сама страница статическая, поэтому «закрыт» от гостей интерфейс, а не файлы сайта.
+
+## Beta 0.08 — подключение входа без пересборки, исправления
+- На экране входа, пока Supabase не подключён, появилась форма «Подключить Supabase»: вставьте Project URL и anon / publishable ключ, и вход заработает без переменных GitHub и без передеплоя. Значения хранятся в браузере (ключ публичный); секретные ключи форма отклоняет. Переменные `SUPABASE_URL` / `SUPABASE_ANON_KEY` в workflow по-прежнему работают и имеют приоритет.
+- Адрес возврата после входа нормализуется (без `index.html`), чтобы совпадал с Redirect URL в Supabase.
+- Сервис-воркер не кэширует страницу возврата с `?code=`; кэш `form-b011`.
+- Проверка: экраны, модальные окна, светлая и тёмная темы, 360 / 768 / 1280 px, консоль и горизонтальная прокрутка. Ошибок не найдено.

@@ -1,4 +1,4 @@
-const CACHE='form-b010';
+const CACHE='form-b011';
 const ASSETS=['./','./index.html','./app.js','./style.css','./extras.js','./auth.js','./upload.js','./config.js','./manifest.webmanifest','./icon.svg','./icon-192.png','./icon-512.png','./apple-touch-icon.png'];
 // версионированные библиотеки с CDN: кэшируем, чтобы проверка входа работала офлайн
 const CDN='https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js';
@@ -22,7 +22,7 @@ self.addEventListener('fetch',e=>{
   // network-first: при сети всегда свежая версия, офлайн — из кэша
   e.respondWith(
     fetch(req).then(res=>{
-      if(res&&res.ok){const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy))}
+      if(res&&res.ok&&!/[?&](code|error)=/.test(url.search)){const copy=res.clone();caches.open(CACHE).then(c=>c.put(req,copy))}
       return res;
     }).catch(()=>caches.match(req,{ignoreSearch:true}).then(r=>r||(req.mode==='navigate'?caches.match('./index.html'):Response.error())))
   );

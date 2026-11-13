@@ -173,6 +173,10 @@ label{display:block;font:11px var(--mono);letter-spacing:.06em;text-transform:up
 @media(min-width:900px){.nav button{gap:12px}.iconbtn.edit:hover{color:var(--ink)}}
 @media(prefers-reduced-motion:reduce){#splash{display:none!important}}
 
+/* ===== v0.08 ===== */
+.au-setup{text-align:left;border:1px solid var(--line);border-radius:6px;padding:12px 14px}.au-setup summary{cursor:pointer;font:600 14px var(--sans)}
+.au-setup ol{margin:10px 0;padding-left:20px;color:var(--mut);font-size:13px;line-height:1.5}.au-setup .tiny{word-break:break-all;margin-bottom:4px}
+.au-setup[hidden]{display:none}
 /* ===== v0.07: вход, загрузка, скелетоны, анимации ===== */
 /* пока вход не подтверждён, приложение не показывается */
 html:not([data-auth=in]) .app,html:not([data-auth=in]) .nav,html:not([data-auth=in]) #modalBack{display:none!important}

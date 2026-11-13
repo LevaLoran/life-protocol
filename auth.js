@@ -2,10 +2,16 @@
    Секретов в клиенте нет: client secret провайдеров хранятся в Supabase, здесь только публичный anon-ключ. */
 (function(){
 'use strict';
-const $=id=>document.getElementById(id),H=document.documentElement,C=window.FORM_CONFIG||{};
+const $=id=>document.getElementById(id),H=document.documentElement;
+const OK_URL=/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)\/?$/i,okCfg=c=>!!c&&OK_URL.test(c.supabaseUrl||'')&&String(c.supabaseAnonKey||'').length>20;
+// конфиг берётся из config.js (деплой) или, если там пусто, из формы на экране входа (localStorage браузера; ключ публичный)
+let local=null;try{local=JSON.parse(localStorage.getItem('formCfg')||'null')}catch(_){}
+const C=okCfg(window.FORM_CONFIG)?window.FORM_CONFIG:(okCfg(local)?local:(window.FORM_CONFIG||{}));
+const fromLocal=C===local;window.FORM_CONFIG=C;
+const SITE=location.origin+location.pathname.replace(/index\.html$/,'');
 const RM=()=>!!(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches);
 const PROV={google:'Google',github:'GitHub'};
-const configured=/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)\/?$/i.test(C.supabaseUrl||'')&&String(C.supabaseAnonKey||'').length>20;
+const configured=okCfg(C);
 const urlErr=(()=>{try{const q=new URLSearchParams(location.search),h=new URLSearchParams(location.hash.slice(1));return q.get('error_description')||h.get('error_description')||''}catch(_){return ''}})();
 let sb=null,user=null,entered=false,checked=false,lastCheck=Date.now();
 const setAuth=s=>{H.dataset.auth=s};
@@ -17,7 +23,7 @@ function showLogin(problem){
   setAuth('out');
   const off=!!problem;
   document.querySelectorAll('.au-btn').forEach(b=>{b.dataset.off=off?'1':'0';b.disabled=off});
-  if(problem==='config')showErr('Вход не настроен: добавьте SUPABASE_URL и SUPABASE_ANON_KEY (см. README, раздел «Вход и облако»).');
+  if(problem==='config')showErr('Вход ещё не подключён к Supabase. Открой «Подключить Supabase» ниже и вставь Project URL и ключ.');
   else if(problem==='lib')showErr('Не удалось загрузить модуль входа. Проверьте подключение к интернету и обновите страницу.');
   else if(urlErr)showErr('Вход не выполнен: '+urlErr);
   else showErr('');
@@ -49,7 +55,7 @@ async function login(provider){
   if(!sb)return;
   showErr('');busy(provider);
   try{
-    const {error}=await sb.auth.signInWithOAuth({provider,options:{redirectTo:location.origin+location.pathname,queryParams:provider==='google'?{prompt:'select_account'}:undefined}});
+    const {error}=await sb.auth.signInWithOAuth({provider,options:{redirectTo:SITE,queryParams:provider==='google'?{prompt:'select_account'}:undefined}});
     if(error)throw error;
   }catch(e){busy(null);showErr('Не удалось начать вход через '+PROV[provider]+'. Попробуйте ещё раз.')}
 }
@@ -87,5 +93,21 @@ document.addEventListener('visibilitychange',async()=>{
 });
 window.addEventListener('pageshow',e=>{if(e.persisted)busy(null)});
 document.querySelectorAll('.au-btn').forEach(b=>b.addEventListener('click',()=>login(b.dataset.provider)));
+const setup=$('auSetup');
+if(setup){
+  setup.hidden=!(!configured||fromLocal);
+  if(!configured)setup.open=true;
+  $('cfgRedirect').textContent='Адрес сайта: '+SITE;
+  $('cfgReset').hidden=!fromLocal;
+  const role=k=>{try{return JSON.parse(atob(k.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).role}catch(_){return ''}};
+  $('cfgSave').onclick=()=>{
+    const u=$('cfgUrl').value.trim().replace(/\/$/,''),k=$('cfgKey').value.trim();
+    if(!okCfg({supabaseUrl:u,supabaseAnonKey:k}))return showErr('Проверь данные: URL вида https://xxxx.supabase.co и полный ключ anon / publishable.');
+    if(/service_role|secret/i.test(k)||role(k)==='service_role')return showErr('Это секретный ключ. Нужен публичный anon / publishable ключ.');
+    try{localStorage.setItem('formCfg',JSON.stringify({supabaseUrl:u,supabaseAnonKey:k}))}catch(_){return showErr('Браузер не даёт сохранить настройки (приватный режим?).')}
+    location.reload();
+  };
+  $('cfgReset').onclick=()=>{try{localStorage.removeItem('formCfg')}catch(_){}location.reload()};
+}
 check().catch(e=>{console.error(e);showLogin('lib')});
 })();
