@@ -14,6 +14,7 @@ const MAX_RANK=rankNames.length-1;
 const skillMap={HEALTH:'FITNESS',FITNESS:'FITNESS',EDUCATION:'INTELLIGENCE',PRODUCTIVITY:'DISCIPLINE',CREATIVE:'CREATIVITY',PERSONAL:'SOCIAL',TECH:'TECHNICAL'};
 const skillNames={INTELLIGENCE:'INTELLIGENCE',DISCIPLINE:'DISCIPLINE',FITNESS:'FITNESS',CREATIVITY:'CREATIVITY',SOCIAL:'SOCIAL',TECHNICAL:'TECHNICAL'};
 const actLvl=n=>n<=0?0:n<=2?1:n<=4?2:n<=7?3:4;
+// Ключи хранилища (lifeProtocol / lifeProtocolDB) намеренно не менялись при переименовании в FORM.: иначе сохранённый прогресс пропал бы.
 const DAILY_LIMIT=10, XP_PER_MISSION=5, STORAGE_KEY='lifeProtocol';
 const has=(o,k)=>Object.prototype.hasOwnProperty.call(o,k);
 const medalDefs=[
@@ -27,6 +28,7 @@ const medalDefs=[
 ];
 const medalMig={'FIRST BLOOD':'ПЕРВЫЙ ШАГ','WEEK WARRIOR':'НЕДЕЛЯ В ДЕЛЕ','CENTURY':'СОТНЯ','PERFECTIONIST':'ПЕРФЕКЦИОНИСТ','DISCIPLINE':'ДИСЦИПЛИНА','VETERAN':'ОПЫТНЫЙ','ВЕТЕРАН':'ОПЫТНЫЙ','SPECIALIST':'СПЕЦИАЛИСТ'};
 const skillRu={INTELLIGENCE:'ИНТЕЛЛЕКТ',DISCIPLINE:'ДИСЦИПЛИНА',FITNESS:'ФИЗИКА',CREATIVITY:'ТВОРЧЕСТВО',TECHNICAL:'ТЕХНИКА',SOCIAL:'СОЦИУМ'};
+const catColor=c=>'var(--c-'+(skillMap[c]||'SOCIAL')+')';
 const medalOk=(def,s=state)=>s.unlocked.includes(def[0])||def[2](s);
 
 /* ---------- ID ---------- */
@@ -89,7 +91,7 @@ function normalize(raw){
  return s;
 }
 let state=load();
-const APP_VERSION='Бета 0.05',DB_NAME='lifeProtocolDB',DB_VER=1;
+const APP_VERSION='Бета 0.06',DB_NAME='lifeProtocolDB',DB_VER=1;
 let dbp=null,ready=false,idbOk=true;
 const getDb=()=>dbp||(dbp=new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VER);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('kv'))r.result.createObjectStore('kv')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
 const idbGet=k=>getDb().then(db=>new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}));
@@ -184,7 +186,7 @@ function render(){
  window.renderAvatars&&renderAvatars();
 }
 function missionHTML(m){
- return `<div class="mission"><button class="check ${m.done?'done':''}" onclick="toggleMission('${m.id}')" aria-label="Выполнить">${m.done?'✓':''}</button><div style="min-width:0;flex:1"><div class="missiontitle" style="${m.done?'text-decoration:line-through;color:var(--dis)':''}">${esc(m.title)}</div><div class="missionmeta">${esc(categories[m.category]||m.category)} · ${m.repeat==='daily'?'Каждый день':'Однократно'}</div></div><span class="xp">${m.done?'+'+XP_PER_MISSION+' XP':XP_PER_MISSION+' XP'}</span><button class="iconbtn" style="padding:5px 8px" onclick="editMission('${m.id}')" aria-label="Редактировать">⋯</button></div>`;
+ return `<div class="mission"><button class="check ${m.done?'done':''}" onclick="toggleMission('${m.id}')" aria-label="${m.done?'Выполнено':'Отметить выполненной'}" title="${m.done?'Выполнено':'Отметить выполненной'}">${m.done?'✓':''}</button><div style="min-width:0;flex:1"><div class="missiontitle" style="${m.done?'text-decoration:line-through;color:var(--dis)':''}">${esc(m.title)}</div><div class="missionmeta"><i class="cdot" style="background:${catColor(m.category)}"></i>${esc(categories[m.category]||m.category)} · ${m.repeat==='daily'?'Каждый день':'Однократно'}</div></div><span class="xp">${m.done?'+'+XP_PER_MISSION+' XP':XP_PER_MISSION+' XP'}</span><button class="iconbtn edit" onclick="editMission('${m.id}')" aria-label="Изменить задачу" title="Изменить"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg></button></div>`;
 }
 function renderMissions(){
  const todays=todaysMissions();
@@ -202,8 +204,8 @@ function toggleMission(id){
  const sk=skillMap[m.category]||'SOCIAL';state.skills[sk]=(state.skills[sk]||0)+1;
  const msgs=[],r=rankIndex(state.xp);
  if(r>state.lastRank){state.lastRank=r;msgs.push('Новый ранг · '+rankNames[r])}else msgs.push('Задача выполнена · +'+XP_PER_MISSION+' XP');
- checkMedals().forEach(n=>msgs.push('Достижение · '+n));
- save();render();toast(msgs.join('  ·  '));bump($('totalXp'));bump($('rankBar'));window.fxGain&&fxGain('+'+XP_PER_MISSION+' XP');if(msgs[0].startsWith('Новый ранг')){bump($('rankCrest'),'rankup');window.fxRank&&fxRank(r)}
+ const extras=checkMedals().map(n=>['Достижение',n]);
+ save();render();(window.freshSkills||[]).forEach(n=>extras.push(['Навык открыт',n]));if(window.fxBadge&&extras.length&&!matchMedia('(prefers-reduced-motion:reduce)').matches){extras.forEach(x=>fxBadge(x[0],x[1]));toast(msgs[0])}else toast(msgs.concat(extras.map(x=>x[0]+' · '+x[1])).join('  ·  '));bump($('totalXp'));bump($('rankBar'));window.fxGain&&fxGain('+'+XP_PER_MISSION+' XP');if(msgs[0].startsWith('Новый ранг')){bump($('rankCrest'),'rankup');window.fxRank&&fxRank(r)}
 }
 function openMission(m=null){
  $('modal').innerHTML=`<h3>${m?'Изменить задачу':'Новая задача'}</h3><label>Название задачи</label><input class="field" id="mTitle" maxlength="70" placeholder="Например: прочитать 10 страниц" value="${m?esc(m.title):''}"><label>Категория</label><select class="field" id="mCategory">${Object.entries(categories).map(([k,v])=>`<option value="${k}" ${m&&m.category===k?'selected':''}>${v}</option>`).join('')}</select><label>Повторение</label><select class="field" id="mRepeat"><option value="once">Однократно</option><option value="daily" ${m&&m.repeat==='daily'?'selected':''}>Каждый день</option></select><div class="row" style="margin-top:17px"><button class="btn ghost" onclick="closeModal()">Отмена</button><button class="btn" onclick="saveMission('${m?m.id:''}')">Сохранить</button></div>${m?`<button class="btn secondary small" style="margin-top:12px;color:var(--mut)" onclick="deleteMission('${m.id}')">${m.repeat==='daily'?'Удалить серию':'Удалить задачу'}</button>`:''}`;
@@ -254,11 +256,6 @@ function generateBriefing(){
 }
 function refreshBriefing(){briefOffset++;generateBriefing()}
 function renderGraphs(){
- const groups=groupByDay(state.completed);
- const cell=d=>{const n=(groups[d]||[]).length;return `<div class="cell" data-level="${n===0?0:n<3?1:n<5?2:n<8?3:4}" title="${dateLabel(d)}: ${n} задач"></div>`};
- const week=[],month=[];
- for(let i=6;i>=0;i--)week.push(daysAgo(i));
- for(let i=29;i>=0;i--)month.push(daysAgo(i));
  window.renderCalendar&&renderCalendar();
  renderWeek();
 }
@@ -272,10 +269,9 @@ function renderNext(r){
  $('nextRank').innerHTML=nx===null?'<strong>Максимальный ранг</strong>':`<div><div class="tiny">Следующий ранг</div><strong>${rankNames[nx]}</strong><div class="tiny">ещё ${Math.max(0,r.end-state.xp)} XP</div></div><div class="remb sm">${crest(nx)}</div>`;
 }
 function renderSkills(){
- const desc={INTELLIGENCE:'Обучение и новые знания',DISCIPLINE:'Планы и организация',FITNESS:'Активность и здоровье',CREATIVITY:'Творчество и проекты',SOCIAL:'Общение и личные дела',TECHNICAL:'Технологии и инженерия'};
- $('skillList').innerHTML=Object.keys(skillNames).map(n=>{
+ $('skillList').innerHTML='<div class="sectiontitle"><span>Прогресс по направлениям</span></div>'+treeOrder.map(n=>{
   const xp=state.skills[n]||0,lvl=Math.floor(xp/10)+1,p=xp%10*10;
-  return `<div class="skill"><div class="row"><strong>${skillRu[n]}</strong><span class="tag">ур. ${String(lvl).padStart(2,'0')}</span></div><div class="row tiny" style="margin-top:8px"><span>${xp} очков</span><span>${p}%</span></div><div class="progress" style="margin-top:8px"><i style="width:${p}%"></i></div></div>`}).join('');
+  return `<div class="skill" style="--c:var(--c-${n})"><div class="row"><strong><i class="cdot" style="background:var(--c)"></i>${skillRu[n]}</strong><span class="tag">ур. ${String(lvl).padStart(2,'0')}</span></div><div class="row tiny" style="margin-top:8px"><span>${xp} очк. · ${feeds(n)}</span><span>${p}%</span></div><div class="progress" style="margin-top:8px;--bar:var(--c)"><i style="width:${p}%"></i></div></div>`}).join('');
 }
 // Возвращает названия медалей, разблокированных прямо сейчас
 function checkMedals(){
@@ -294,7 +290,7 @@ function renderMedals(){
 function renderStats(){
  const cats=countCats(state.completed),total=state.completed.length;
  $('statXp').textContent=state.xp;$('statMissions').textContent=total;$('statDays').textContent=activeDays(state);
- $('categoryStats').innerHTML=Object.keys(categories).map(c=>{const n=cats[c]||0,p=total?n/total*100:0;return `<div style="margin:10px 0"><div class="row"><span>${categories[c]}</span><span class="tiny muted">${n} / ${Math.round(p)}%</span></div><div class="progress"><i style="width:${p}%"></i></div></div>`}).join('');
+ $('categoryStats').innerHTML=Object.keys(categories).map(c=>{const n=cats[c]||0,p=total?n/total*100:0;return `<div style="margin:10px 0"><div class="row"><span><i class="cdot" style="background:${catColor(c)}"></i>${categories[c]}</span><span class="tiny muted">${n} / ${Math.round(p)}%</span></div><div class="progress" style="--bar:${catColor(c)}"><i style="width:${p}%"></i></div></div>`}).join('');
 }
 function makeReport(){
  const t=today(),todayDone=state.completed.filter(x=>x.date===t),cats=countCats(todayDone),top=Object.entries(cats).sort((a,b)=>b[1]-a[1])[0];
@@ -332,9 +328,13 @@ function showScreen(id){
  document.querySelectorAll('.nav button').forEach(x=>x.classList.toggle('active',x.dataset.screen===navId));
  window.scrollTo({top:0,behavior:'smooth'});
  if(id==='dashboard')generateBriefing();
+ if(id==='skills'){treeApply();setTimeout(()=>pulse.clear(),2000)}
 }
 function showModal(){$('modalBack').classList.add('show')}
-function closeModal(){$('modalBack').classList.remove('show')}
+function closeModal(){
+ $('modalBack').classList.remove('show');
+ if(TV.sel){const s=TV.sel;TV.sel=null;renderTree();const n=document.querySelector(`.tnode[data-c="${s.slice(0,-1)}"][data-t="${s.slice(-1)}"]`);if(n)n.focus({preventScroll:true})}
+}
 function openSettings(){
  $('modal').innerHTML=`<h3>Настройки</h3><label>Имя</label><input class="field" id="settingCall" maxlength="18" value="${esc(state.callsign)}"><p class="sub">Данные сохраняются в локальном хранилище браузера. Установка: открой сайт в браузере телефона и выбери «Добавить на главный экран».</p><div class="row" style="margin-top:16px"><button class="btn ghost" onclick="closeModal()">Закрыть</button><button class="btn" onclick="saveSettings()">Сохранить</button></div>`;
  showModal();
@@ -346,7 +346,7 @@ function editProfile(){openSettings()}
 function exportData(){
  state.lastBackup=Date.now();save();renderData();
  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),a=document.createElement('a');
- a.href=URL.createObjectURL(blob);a.download='life-protocol-backup.json';
+ a.href=URL.createObjectURL(blob);a.download='form-backup.json';
  document.body.appendChild(a);a.click();a.remove();
  setTimeout(()=>URL.revokeObjectURL(a.href),1000);
 }
@@ -368,10 +368,18 @@ function importData(e){
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 
 
-/* ---------- Skill Tree ---------- */
-const treeCats=[['INTELLIGENCE','ИНТЕЛЛЕКТ','#000'],['DISCIPLINE','ДИСЦИПЛ.','#000'],['CREATIVITY','ТВОРЧЕСТВО','#000'],['FITNESS','ФИЗИКА','#000'],['TECHNICAL','ТЕХНИКА','#000'],['SOCIAL','СОЦИУМ','#000']];
+/* ---------- Дерево навыков ---------- */
+// Три направления по два навыка; колонки подобраны так, что все связи между ветками идут только между соседними колонками.
+const treeGroups=[['Люди и творчество',['SOCIAL','CREATIVITY']],['Разум',['INTELLIGENCE','TECHNICAL']],['Воля и тело',['DISCIPLINE','FITNESS']]];
+const treeOrder=treeGroups.flatMap(g=>g[1]);
+const treeLab={INTELLIGENCE:'Интеллект',DISCIPLINE:'Дисциплина',FITNESS:'Физика',CREATIVITY:'Творчество',TECHNICAL:'Техника',SOCIAL:'Социум'};
 const tierNames={INTELLIGENCE:['Ученик','Аналитик','Эрудит'],DISCIPLINE:['Режим','Фокус','Воля'],CREATIVITY:['Искра','Мастер','Визионер'],FITNESS:['Ходок','Атлет','Титан'],TECHNICAL:['Самоделкин','Инженер','Архитектор'],SOCIAL:['Связной','Оратор','Лидер']};
 const tierAt=[0,10,30],cross={INTELLIGENCE:'TECHNICAL',DISCIPLINE:'FITNESS',CREATIVITY:'INTELLIGENCE',FITNESS:'DISCIPLINE',TECHNICAL:'DISCIPLINE',SOCIAL:'CREATIVITY'};
+const tierDesc=['Базовая ступень направления, открыта сразу.','Продвинутая ступень: нужна база ветки и 10 очков направления.','Вершина ветки: нужны 30 очков и навык из соседнего направления.'];
+const feeds=c=>Object.keys(skillMap).filter(k=>skillMap[k]===c).map(k=>categories[k]).join(', ');
+const PADX=14,COLW=150,NW=128,NH=92,ROWH=138,TOP=70,TW=PADX*2+5*COLW+NW,TH=TOP+2*ROWH+NH+16;
+const TV={k:1,x:0,init:false,sel:null},pulse=new Set();
+const TI={learned:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m5 12.5 4.5 4.5L19 7"/></svg>',lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="11" width="14" height="9" rx="1.5"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>'};
 function nodeInfo(c,t){
  const p=state.skills[c]||0,pre=[];
  if(t>0)pre.push([c,t-1]);if(t===2)pre.push([cross[c],1]);
@@ -380,29 +388,73 @@ function nodeInfo(c,t){
  return {p,pre,unlocked,lvl,avail:preOk&&!unlocked,pct:lvl>=5?100:unlocked?(p-tierAt[t])%8/8*100:preOk?Math.min(99,p/tierAt[t]*100):0};
 }
 function renderTree(){
- const X=i=>32+i*59,Y=t=>58+t*100,idx=Object.fromEntries(treeCats.map((c,i)=>[c[0],i]));
- let lines='',nodes='',unlockedNow=[];
- treeCats.forEach(([c,lab,col],i)=>{
-  nodes+=`<text x="${X(i)}" y="16" class="tc">${lab}</text>`;
+ const el=$('skillTree');if(!el)return;
+ const cx=i=>PADX+i*COLW+NW/2,ty=t=>TOP+t*ROWH,idx=Object.fromEntries(treeOrder.map((c,i)=>[c,i])),info={},now=[];
+ treeOrder.forEach(c=>[0,1,2].forEach(t=>{const n=info[c+t]=nodeInfo(c,t);if(n.unlocked)now.push(c+t)}));
+ const fresh=state.treeSeen?now.filter(x=>!state.treeSeen.includes(x)):[];
+ fresh.forEach(f=>pulse.add(f));
+ window.freshSkills=fresh.map(f=>tierNames[f.slice(0,-1)][+f.slice(-1)]);
+ if(!state.treeSeen||fresh.length){state.treeSeen=now;save()}
+ let ln='',nd='',hd='';
+ treeGroups.forEach((g,gi)=>{hd+=`<div class="tg" style="left:${PADX+gi*2*COLW}px;width:${COLW+NW}px">${g[0]}</div>`});
+ treeOrder.forEach((c,i)=>{
+  hd+=`<div class="tb" style="left:${PADX+i*COLW}px;--c:var(--c-${c})">${treeLab[c]}</div>`;
   for(let t=0;t<3;t++){
-   const n=nodeInfo(c,t);if(n.unlocked)unlockedNow.push(c+t);
-   n.pre.forEach(([cc,tt])=>{lines+=`<line class="tl ${n.unlocked?'on':''}" x1="${X(idx[cc])}" y1="${Y(tt)}" x2="${X(i)}" y2="${Y(t)}" ${n.unlocked?`stroke="${col}"`:''}/>`});
-   const isNew=state.treeSeen&&!state.treeSeen.includes(c+t)&&n.unlocked;
-   nodes+=`<g class="tn ${n.unlocked?'':n.avail?'avail':'lock'} ${isNew?'new':''}" data-c="${c}" data-t="${t}"><circle cx="${X(i)}" cy="${Y(t)}" r="25" fill="none" stroke="#e4e4e4" stroke-width="3"/><circle cx="${X(i)}" cy="${Y(t)}" r="25" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${(157*n.pct/100).toFixed(1)} 157" transform="rotate(-90 ${X(i)} ${Y(t)})" class="ring"/><circle class="n" cx="${X(i)}" cy="${Y(t)}" r="19" stroke="${n.unlocked?col:'#bdbdbd'}"/><text x="${X(i)}" y="${Y(t)+4}" class="lv">${n.unlocked?n.lvl:n.avail?'+':'–'}</text><text x="${X(i)}" y="${Y(t)+40}">${tierNames[c][t]}</text></g>`;
-  }});
- $('skillTree').innerHTML=`<svg viewBox="0 0 364 330" role="img" aria-label="Дерево навыков">${lines}${nodes}</svg>`;
- const fresh=state.treeSeen?unlockedNow.filter(x=>!state.treeSeen.includes(x)):[];
- if(!state.treeSeen||fresh.length){state.treeSeen=unlockedNow;save();if(fresh.length&&ready)toast('Навык открыт · '+fresh.map(f=>tierNames[f.slice(0,-1)][+f.slice(-1)]).join(', '))}
+   const n=info[c+t],st=n.unlocked?'learned':n.avail?'avail':'lock',key=c+t;
+   n.pre.forEach(([cc,tt])=>{
+    const x1=cx(idx[cc]),y1=ty(tt)+NH,x2=cx(i),y2=ty(t),m=(y1+y2)/2,hl=TV.sel&&(TV.sel===key||TV.sel===cc+tt);
+    ln+=`<path class="tl${n.unlocked?' on':''}${cc!==c?' x':''}${hl?' hl':''}" style="--c:var(--c-${cc})" d="M${x1} ${y1}C${x1} ${m} ${x2} ${m} ${x2} ${y2}"/>`;
+   });
+   const sub=n.unlocked?`Уровень ${n.lvl} из 5`:n.avail?`${n.p} / ${tierAt[t]} очков`:'Закрыто';
+   nd+=`<button class="tnode st-${st}${pulse.has(key)?' new':''}${TV.sel===key?' sel':''}" style="left:${PADX+i*COLW}px;top:${ty(t)}px;--c:var(--c-${c})" data-c="${c}" data-t="${t}" aria-label="${tierNames[c][t]}, ${treeLab[c]}: ${sub}"><b>${tierNames[c][t]}</b><span class="ti">${st==='learned'?TI.learned:st==='lock'?TI.lock:''}</span><small>${sub}</small><div class="progress"><i style="width:${n.pct}%"></i></div></button>`;
+  }
+ });
+ el.innerHTML=`<div class="tree-tools"><div class="tchips">${treeOrder.map(c=>`<button class="chip" style="--c:var(--c-${c})" onclick="treeFocus('${c}')"><i></i>${treeLab[c]}</button>`).join('')}</div><span class="zoomb"><button onclick="treeZoom(.85)" aria-label="Уменьшить">−</button><button onclick="treeZoom(1.18)" aria-label="Увеличить">+</button><button class="t" onclick="treeFit()">Сброс вида</button></span></div><div id="treeVp"><div id="treeCv" style="width:${TW}px;height:${TH}px"><svg width="${TW}" height="${TH}" viewBox="0 0 ${TW} ${TH}" aria-hidden="true">${ln}</svg>${hd}${nd}</div></div><div class="tleg"><span><i class="sw l"></i>изучено</span><span><i class="sw a"></i>доступно</span><span><i class="sw k"></i>закрыто</span><span>сплошная линия — ступени ветки, тонкая — связь с соседним направлением</span></div>`;
+ treeApply();
 }
+function treeApply(){
+ const vp=$('treeVp'),cv=$('treeCv');if(!vp||!cv)return;
+ const vw=vp.clientWidth;if(!vw)return;
+ if(!TV.init){
+  TV.init=true;TV.k=Math.max(Math.min(vw/TW,1),.8);
+  const best=treeOrder.slice().sort((a,b)=>(state.skills[b]||0)-(state.skills[a]||0))[0];
+  TV.x=vw/2-(PADX+treeOrder.indexOf(best)*COLW+NW/2)*TV.k;
+ }
+ TV.k=Math.min(1.5,Math.max(.5,TV.k));
+ const cw=TW*TV.k;TV.x=cw<=vw?(vw-cw)/2:Math.min(0,Math.max(vw-cw,TV.x));
+ vp.style.height=Math.ceil(TH*TV.k)+'px';cv.style.transform=`translate(${TV.x}px,0) scale(${TV.k})`;
+}
+function treeZoom(f){const vp=$('treeVp');if(!vp||!vp.clientWidth)return;const vw=vp.clientWidth,mid=(vw/2-TV.x)/TV.k,k=Math.min(1.5,Math.max(.5,TV.k*f));TV.x=vw/2-mid*k;TV.k=k;treeApply()}
+function treeFit(){TV.init=false;treeApply()}
+function treeFocus(c){const vp=$('treeVp');if(!vp||!vp.clientWidth)return;TV.x=vp.clientWidth/2-(PADX+treeOrder.indexOf(c)*COLW+NW/2)*TV.k;treeApply()}
+(function(){
+ let d=null;
+ document.addEventListener('pointerdown',e=>{const vp=e.target.closest&&e.target.closest('#treeVp');if(vp&&e.button!==2)d={x:e.clientX,x0:TV.x,m:false,id:e.pointerId}});
+ document.addEventListener('pointermove',e=>{
+  if(!d)return;const dx=e.clientX-d.x;
+  if(!d.m&&Math.abs(dx)>6){d.m=true;$('treeCv').classList.add('drag');try{$('treeVp').setPointerCapture(d.id)}catch(_){}}
+  if(d.m){TV.x=d.x0+dx;treeApply()}
+ });
+ const end=()=>{if(d&&d.m){window.__td=Date.now();const cv=$('treeCv');if(cv)cv.classList.remove('drag')}d=null};
+ document.addEventListener('pointerup',end);document.addEventListener('pointercancel',end);
+ document.addEventListener('wheel',e=>{if(e.ctrlKey&&e.target.closest&&e.target.closest('#treeVp')){e.preventDefault();treeZoom(e.deltaY<0?1.1:.9)}},{passive:false});
+ document.addEventListener('focusin',e=>{
+  const n=e.target.closest&&e.target.closest('.tnode'),vp=$('treeVp');if(!n||!vp)return;
+  vp.scrollLeft=0;vp.scrollTop=0;
+  const l=TV.x+n.offsetLeft*TV.k;if(l<0||l+NW*TV.k>vp.clientWidth)treeFocus(n.dataset.c);
+ });
+ window.addEventListener('resize',()=>treeApply());
+ document.addEventListener('click',e=>{const g=e.target.closest&&e.target.closest('.tnode');if(g&&Date.now()-(window.__td||0)>250)openNode(g.dataset.c,+g.dataset.t)});
+})();
 function openNode(c,t){
- const n=nodeInfo(c,t),lab=treeCats.find(x=>x[0]===c)[1],ok=b=>b?'✓':'✗';
- const conds=[`${ok(n.p>=tierAt[t])} ${tierAt[t]} очков навыка «${lab}» (сейчас ${n.p})`].concat(n.pre.map(([cc,tt])=>`${ok(nodeInfo(cc,tt).lvl>=1)} Навык «${tierNames[cc][tt]}» уровня 1+`));
- const d=['Базовый навык направления.','Продвинутый уровень: требует базу ветки.','Вершина ветки: требует связанный навык из другого направления.'][t];
- $('modal').innerHTML=`<h3>${tierNames[c][t].toUpperCase()}</h3><div class="tiny muted">${lab} · Ступень ${t+1}</div><p class="sub">${d} Прогресс растёт от выполненных задач этого направления.</p><div class="row"><strong>УРОВЕНЬ ${n.lvl} / 5</strong><span class="tag">${n.unlocked?'ИЗУЧЕНО':n.avail?'ДОСТУПНО':'ЗАКРЫТО'}</span></div><div class="progress"><i style="width:${n.pct}%"></i></div><label>Условия</label>${conds.map(x=>`<div class="sub">${x}</div>`).join('')}<div class="row" style="margin-top:16px"><button class="btn ghost" onclick="closeModal()">Закрыть</button></div>`;showModal();
+ const n=nodeInfo(c,t),lab=treeLab[c],grp=treeGroups.find(g=>g[1].includes(c))[0];
+ TV.sel=c+t;renderTree();
+ const conds=[[n.p>=tierAt[t],t===0?'Особых условий нет':`${tierAt[t]} очков направления «${lab}» (сейчас ${n.p})`]].concat(n.pre.map(([cc,tt])=>[nodeInfo(cc,tt).lvl>=1,`Изучен навык «${tierNames[cc][tt]}» (${treeLab[cc]})`]));
+ const status=n.unlocked?'Изучено':n.avail?'Доступно':'Закрыто';
+ const prog=n.unlocked?(n.lvl<5?`До уровня ${n.lvl+1}: ещё ${tierAt[t]+n.lvl*8-n.p} очк.`:'Максимальный уровень'):n.avail?`Набрано ${n.p} из ${tierAt[t]} очков`:'Сначала изучите требуемые навыки';
+ $('modal').innerHTML=`<div class="tiny">${grp} · ${lab} · ступень ${t+1} из 3</div><h3 style="margin-top:6px">${tierNames[c][t]}</h3><p class="sub">${tierDesc[t]} Очки дают задачи: ${feeds(c)}.</p><div class="row"><strong>${n.unlocked?'Уровень '+n.lvl+' из 5':'Не изучено'}</strong><span class="tag">${status}</span></div><div class="progress" style="--bar:var(--c-${c})"><i style="width:${n.pct}%"></i></div><div class="tiny" style="margin-top:6px">${prog}</div><label>Условия открытия</label>${conds.map(([ok,x])=>`<div class="cond${ok?' met':''}" style="--c:var(--c-${c})"><span>${ok?'✓':'○'}</span>${x}</div>`).join('')}<label>Стоимость</label><div class="sub" style="margin:0">${t===0?'Бесплатно: открыто с самого начала.':`Порог ${tierAt[t]} очков направления. Очки не тратятся, а копятся от выполненных задач.`}</div><div class="row" style="margin-top:16px"><button class="btn ghost" onclick="closeModal()">Закрыть</button></div>`;
+ showModal();
 }
-document.addEventListener('click',e=>{
- const g=e.target.closest&&e.target.closest('.tn');if(g)openNode(g.dataset.c,+g.dataset.t);
-});
 /* ---------- Contribution graph ---------- */
 let updating=false;
 function showUpdate(w){

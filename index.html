@@ -1,42 +1,44 @@
 <!doctype html>
-<html lang="ru">
+<html lang="ru" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
+  <script>try{var d=document.documentElement,t=localStorage.getItem("formTheme");if(t!=="dark"&&t!=="light")t=matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light";d.dataset.theme=t;if(sessionStorage.getItem("formSplash"))d.classList.add("nosplash");else sessionStorage.setItem("formSplash","1")}catch(e){}</script>
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="PROTOCOL">
+  <meta name="apple-mobile-web-app-title" content="FORM.">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
-  <meta name="description" content="LIFE PROTOCOL — ежедневные задачи, опыт и ранги">
+  <meta name="description" content="FORM. — Shape yourself: ежедневные задачи, опыт, ранги и навыки">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="icon" href="icon-192.png" type="image/png" sizes="192x192">
-  <title>LIFE PROTOCOL</title>
+  <title>FORM. — Shape yourself</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div id="splash" aria-hidden="true"><svg viewBox="0 0 512 512"><circle class="r" cx="256" cy="256" r="158"/><circle class="d" style="--i:0" cx="256.0" cy="98.0" r="16"/><circle class="d" style="--i:1" cx="335.0" cy="119.2" r="16"/><circle class="d" style="--i:2" cx="392.8" cy="177.0" r="16"/><circle class="d" style="--i:3" cx="414.0" cy="256.0" r="16"/><circle class="d" style="--i:4" cx="392.8" cy="335.0" r="16"/><circle class="d" style="--i:5" cx="335.0" cy="392.8" r="16"/><circle class="d" style="--i:6" cx="256.0" cy="414.0" r="16"/><circle class="d" style="--i:7" cx="177.0" cy="392.8" r="16"/><circle class="d" style="--i:8" cx="119.2" cy="335.0" r="16"/><circle class="d" style="--i:9" cx="98.0" cy="256.0" r="16"/><circle class="d" style="--i:10" cx="119.2" cy="177.0" r="16"/><circle class="d" style="--i:11" cx="177.0" cy="119.2" r="16"/><circle class="d" style="--i:12" cx="303.5" cy="173.7" r="13"/><circle class="d" style="--i:13" cx="351.0" cy="256.0" r="13"/><circle class="d" style="--i:14" cx="303.5" cy="338.3" r="13"/><circle class="d" style="--i:15" cx="208.5" cy="338.3" r="13"/><circle class="d" style="--i:16" cx="161.0" cy="256.0" r="13"/><circle class="d" style="--i:17" cx="208.5" cy="173.7" r="13"/><circle class="d c" style="--i:18" cx="256" cy="256" r="26"/></svg><div class="sp-word"><span style="--i:0">F</span><span style="--i:1">O</span><span style="--i:2">R</span><span style="--i:3">M</span><span style="--i:4" class="p">.</span></div><div class="sp-tag">SHAPE YOURSELF</div></div>
 <div class="app">
-  <header><div><div class="brand">LIFE <span>PROTOCOL</span></div><div class="status">0.05</div></div><div class="topright"><span id="dateTop" class="tiny"></span><button class="avslot" data-size="32" onclick="showScreen('profile')" aria-label="Профиль"></button><button class="iconbtn" onclick="openSettings()" aria-label="Настройки"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg></button></div></header>
+  <header><div><div class="brand">FORM<em>.</em></div><div class="status">SHAPE YOURSELF</div></div><div class="topright"><span id="dateTop" class="tiny"></span><button class="avslot" data-size="32" onclick="showScreen('profile')" aria-label="Профиль"></button><button class="iconbtn" id="themeBtn" onclick="toggleTheme()" aria-label="Тёмная тема" aria-pressed="false" title="Светлая / тёмная тема"><svg class="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/></svg><svg class="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5.3 5.3l1.4 1.4M17.3 17.3l1.4 1.4M5.3 18.7l1.4-1.4M17.3 6.7l1.4-1.4"/></svg></button><button class="iconbtn" onclick="openSettings()" title="Настройки" aria-label="Настройки"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8h9M17 8h3M4 16h3M11 16h9"/><circle cx="15" cy="8" r="2"/><circle cx="9" cy="16" r="2"/></svg></button></div></header>
 
   <main>
     <section id="dashboard" class="screen active">
       <div class="heading">Главная</div>
       <div class="rankcard"><div class="crest" id="rankCrest"></div><div class="rc-body"><div class="row"><strong id="rankName" class="rname">Новичок</strong><span class="tag" id="rankLevel">01</span></div><div class="dnwrap" id="totalXp"></div><div class="row tiny"><span id="xpText">0 / 100 XP</span><span id="xpPercent">0%</span></div><div class="progress"><i id="rankBar" style="width:0%"></i></div></div></div>
       <div class="stats two"><div class="stat"><div class="tiny">Всего задач</div><div class="big" id="totalDone">0</div></div><div class="stat"><div class="tiny">Серия, дней</div><div class="big" id="streak">0</div></div></div>
-      <div class="panel nextrank" id="nextRank" onclick="showScreen('ranks')"></div>
+      <div class="panel nextrank" id="nextRank" role="button" tabindex="0" onclick="showScreen('ranks')" onkeydown="if(event.key==='Enter')showScreen('ranks')"></div>
       <p id="briefing" class="sub"></p>
       <div class="sectiontitle"><span>Задачи на сегодня</span><span id="missionCount">0 / 10</span></div>
       <div id="dashMissions"></div>
-      <div style="margin-top:12px"><button class="btn" onclick="openMission()">+ Новая задача</button></div>
+      <div style="margin-top:12px"><button class="btn primary block" onclick="openMission()">+ Новая задача</button></div>
       <div class="sectiontitle"><span>Эта неделя</span></div>
       <div id="weekGraph"></div>
     </section>
 
     <section id="missions" class="screen">
       <div class="heading">Задачи</div>
-      <div class="row"><span class="sub" id="missionSummary">Ежедневные задачи</span><button class="btn small" onclick="openMission()">+ Добавить</button></div>
+      <div class="row"><span class="sub" id="missionSummary">Ежедневные задачи</span><button class="btn small primary" onclick="openMission()">+ Добавить</button></div>
       <div class="sectiontitle"><span>Сегодня</span><span id="missionLimit">0 / 10</span></div>
       <div id="allMissions"></div>
       <details class="dd" style="margin-top:18px"><summary>Идеи для задач</summary><div class="ddm"><button onclick="suggestMissions()">Подобрать задачи</button><div id="suggestions"></div></div></details>
@@ -50,6 +52,7 @@
 
     <section id="skills" class="screen">
       <div class="heading">Навыки</div>
+      <p class="sub">Каждая выполненная задача даёт очко навыка своего направления. Нажмите на навык, чтобы увидеть условия.</p>
       <div id="skillTree"></div><div id="skillList"></div>
     </section>
 
@@ -74,11 +77,11 @@
       <div class="phero"><div class="row start"><button class="avslot heroav" data-size="72" data-edit="1" aria-label="Изменить аватар"></button><div style="flex:1;min-width:0"><div id="callsignView" class="pcall">ПОЛЬЗОВАТЕЛЬ</div><div id="profileRank" class="prank"></div></div><div class="crest" id="profileCrest"></div></div><div id="profileXp" class="pxp">0 XP</div><div class="sub" id="profileNext"></div><div class="progress"><i id="profileBar" style="width:0%"></i></div><div class="row" style="margin-top:16px"><span class="tiny">С <span id="createdAt"></span></span><span style="display:flex;gap:8px"><button class="btn ghost small" style="color:#fff;border-color:#fff" onclick="openAvatar()">Фото</button><button class="btn ghost small" style="color:#fff;border-color:#fff" onclick="editProfile()">Имя</button></span></div></div>
       <div class="stats"><div class="stat"><div class="tiny">Задач</div><div class="big" id="profileMissions">0</div></div><div class="stat"><div class="tiny">Лучшая серия</div><div class="big" id="bestStreak">0</div></div><div class="stat"><div class="tiny">Награды</div><div class="big" id="profileMedals">0 / 7</div></div></div>
       <div class="sectiontitle"><span>Награды</span><span id="profMedalCount"></span></div><div class="mgrid" id="profMedals"></div>
-      <div class="sectiontitle"><span>Данные</span></div>
+      <div class="sectiontitle"><span>Данные и резервная копия</span></div>
       <div class="sub" id="dataInfo" style="line-height:1.7"></div>
-      <details class="dd"><summary>Резервная копия</summary><div class="ddm"><button onclick="exportData()">Экспорт в файл</button><label>Импорт из файла<input type="file" accept="application/json" hidden onchange="importData(event)"></label></div></details>
+      <details class="dd"><summary>Сохранить или восстановить данные</summary><div class="ddm"><button onclick="exportData()">Экспорт в файл</button><label>Импорт из файла<input type="file" accept="application/json" hidden onchange="importData(event)"></label></div></details>
       <div class="row" style="gap:8px;margin-top:18px"><button class="btn ghost small" style="flex:1" onclick="showScreen('achievements')">Награды</button><button class="btn ghost small" style="flex:1" onclick="showScreen('stats')">Статистика</button><button class="btn ghost small" style="flex:1" onclick="showScreen('history')">История</button></div>
-      <div class="tiny" style="margin:18px 0 0">LIFE PROTOCOL · <span id="appVer"></span></div>
+      <div class="tiny" style="margin:18px 0 0">FORM. · <span id="appVer"></span></div>
     </section>
 
     <section id="history" class="screen">
@@ -90,13 +93,13 @@
 </div>
 
 <nav class="nav">
-  <div class="navbrand">LIFE<br><span>PROTOCOL</span></div>
+  <div class="navbrand">FORM<em>.</em><span>SHAPE YOURSELF</span></div>
   <button class="active" data-screen="dashboard" onclick="showScreen('dashboard')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 11 12 4l8 7v9H4z"/></svg>Главная</button>
   <button data-screen="missions" onclick="showScreen('missions')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg>Задачи</button>
   <button data-screen="ranks" onclick="showScreen('ranks')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>Ранги</button>
   <button data-screen="skills" onclick="showScreen('skills')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M8 6h8M7.2 7.8 11 16.2M16.8 7.8 13 16.2"/></svg>Навыки</button>
-  <button class="dk" data-screen="achievements" onclick="showScreen('achievements')">Награды</button>
-  <button class="dk" data-screen="stats" onclick="showScreen('stats')">Статистика</button>
+  <button class="dk" data-screen="achievements" onclick="showScreen('achievements')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5v1a3 3 0 0 0 3 3M16 6h3v1a3 3 0 0 1-3 3M12 13v4M8 20h8"/></svg>Награды</button>
+  <button class="dk" data-screen="stats" onclick="showScreen('stats')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Статистика</button>
   <button class="mo" data-screen="profile" onclick="showScreen('profile')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="9" r="3.5"/><path d="M5 20c1-4 4-5.5 7-5.5s6 1.500 7 5.5"/></svg>Профиль</button>
   <div class="navfoot" onclick="showScreen('profile')"><span class="avslot" data-size="36"></span><div><b id="opName">ПОЛЬЗОВАТЕЛЬ</b><span class="t" id="opRank"></span></div></div>
 </nav>

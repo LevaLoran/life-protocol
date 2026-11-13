@@ -71,7 +71,7 @@ function pickDay(k){
 }
 /* ---------- аватары ---------- */
 const V=300,MAXB=8*1024*1024;
-const dflt=()=>{const ch=(String(state.callsign||'O').trim().charAt(0)||'O').toUpperCase();return `<svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" fill="#fff"/><path d="M24 8 37 13.5v9.5c0 8.5-5.5 14-13 17.5C16.500 37 11 31.500 11 23v-9.500z" fill="none" stroke="#000" stroke-width="1.2"/><text x="24" y="29.500" text-anchor="middle" font-family="ui-monospace,Consolas,monospace" font-size="15" font-weight="700" fill="#000">${esc(ch)}</text></svg>`};
+const dflt=()=>{const ch=(String(state.callsign||'O').trim().charAt(0)||'O').toUpperCase();return `<svg viewBox="0 0 48 48" aria-hidden="true"><rect width="48" height="48" style="fill:var(--surf)"/><path d="M24 8 37 13.5v9.5c0 8.5-5.5 14-13 17.5C16.500 37 11 31.500 11 23v-9.500z" fill="none" stroke="currentColor" stroke-width="1.2"/><text x="24" y="29.500" text-anchor="middle" font-family="ui-monospace,Consolas,monospace" font-size="15" font-weight="700" fill="currentColor">${esc(ch)}</text></svg>`};
 window.renderAvatars=function(pop){
  const ch=(String(state.callsign||'O').trim().charAt(0)||'O').toUpperCase();
  const sig=(state.avatar?state.avatar.length+':'+state.avatar.slice(-20):'d')+'|'+ch;
@@ -106,14 +106,14 @@ async function pick(e){
 }
 function crop(d){
  const base=V/Math.min(d.w,d.h);E={src:d.src,w:d.w,h:d.h,base,z:1,s:base,ox:(V-d.w*base)/2,oy:(V-d.h*base)/2};
- q('avBody').innerHTML=`<div style="display:grid;place-items:center;margin:12px 0"><canvas id="avCv" width="${V}" height="${V}" style="width:100%;max-width:${V}px;touch-action:none;border-radius:14px;cursor:grab;background:#f5f5f5"></canvas></div><div class="row" style="gap:12px"><input id="avZ" type="range" min="1" max="4" step=".01" value="1" style="flex:1" aria-label="Масштаб"><span class="av" style="--s:56px"><canvas id="avPv" width="56" height="56"></canvas></span></div><div class="tiny muted" style="margin:8px 0 12px">Перетащите фото и выберите масштаб</div><div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start"><button class="btn" id="avSave">Сохранить</button><label class="btn ghost" style="margin:0;cursor:pointer;display:inline-block">Другое<input type="file" id="avFile" accept="image/jpeg,image/png,image/webp" hidden></label><button class="btn ghost" id="avBack">Отмена</button></div>`;
+ q('avBody').innerHTML=`<div style="display:grid;place-items:center;margin:12px 0"><canvas id="avCv" width="${V}" height="${V}" style="width:100%;max-width:${V}px;touch-action:none;border-radius:14px;cursor:grab;background:var(--bg2)"></canvas></div><div class="row" style="gap:12px"><input id="avZ" type="range" min="1" max="4" step=".01" value="1" style="flex:1" aria-label="Масштаб"><span class="av" style="--s:56px"><canvas id="avPv" width="56" height="56"></canvas></span></div><div class="tiny muted" style="margin:8px 0 12px">Перетащите фото и выберите масштаб</div><div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start"><button class="btn" id="avSave">Сохранить</button><label class="btn ghost" style="margin:0;cursor:pointer;display:inline-block">Другое<input type="file" id="avFile" accept="image/jpeg,image/png,image/webp" hidden></label><button class="btn ghost" id="avBack">Отмена</button></div>`;
  q('avFile').onchange=pick;q('avBack').onclick=avHome;
  const cv=q('avCv'),pv=q('avPv'),cx=cv.getContext('2d'),px=pv.getContext('2d');
  const clamp=()=>{E.ox=Math.min(0,Math.max(V-E.w*E.s,E.ox));E.oy=Math.min(0,Math.max(V-E.h*E.s,E.oy))};
  const draw=()=>{
   clamp();cx.clearRect(0,0,V,V);cx.drawImage(E.src,E.ox,E.oy,E.w*E.s,E.h*E.s);
-  cx.save();cx.fillStyle='rgba(255,255,255,.72)';cx.beginPath();cx.rect(0,0,V,V);cx.arc(V/2,V/2,V/2-6,0,7,true);cx.fill('evenodd');cx.restore();
-  cx.strokeStyle='#000';cx.lineWidth=1.5;cx.beginPath();cx.arc(V/2,V/2,V/2-6,0,7);cx.stroke();
+  cx.save();const dk=document.documentElement.dataset.theme==='dark';cx.fillStyle=dk?'rgba(0,0,0,.72)':'rgba(255,255,255,.72)';cx.beginPath();cx.rect(0,0,V,V);cx.arc(V/2,V/2,V/2-6,0,7,true);cx.fill('evenodd');cx.restore();
+  cx.strokeStyle=dk?'#fff':'#000';cx.lineWidth=1.5;cx.beginPath();cx.arc(V/2,V/2,V/2-6,0,7);cx.stroke();
   px.clearRect(0,0,56,56);px.drawImage(E.src,-E.ox/E.s,-E.oy/E.s,V/E.s,V/E.s,0,0,56,56);
  };
  draw();
@@ -164,4 +164,34 @@ document.addEventListener('click',e=>{
  }
  const a=e.target.closest&&e.target.closest('.avslot[data-edit]');if(a)window.openAvatar();
 });
+})();
+
+/* ---------- v0.06: тема, заставка, всплывающие достижения ---------- */
+(function(){
+'use strict';
+const q=id=>document.getElementById(id),RM=()=>!!(window.matchMedia&&matchMedia('(prefers-reduced-motion:reduce)').matches);
+function sync(){
+ const dk=document.documentElement.dataset.theme==='dark',m=document.querySelector('meta[name="theme-color"]'),b=q('themeBtn');
+ if(m)m.setAttribute('content',dk?'#0b0b0c':'#ffffff');
+ if(b){b.setAttribute('aria-pressed',dk?'true':'false');b.setAttribute('aria-label',dk?'Включить светлую тему':'Включить тёмную тему')}
+}
+window.toggleTheme=function(){
+ const h=document.documentElement,n=h.dataset.theme==='dark'?'light':'dark';
+ if(!RM()){h.classList.add('tswap');setTimeout(()=>h.classList.remove('tswap'),450)}
+ h.dataset.theme=n;try{localStorage.setItem('formTheme',n)}catch(_){}sync();
+};
+sync();
+const sp=q('splash');
+if(sp){
+ const kill=()=>{if(sp.parentNode)sp.remove()};
+ sp.addEventListener('click',()=>{sp.classList.add('out');setTimeout(kill,350)});
+ sp.addEventListener('animationend',ev=>{if(ev.target===sp&&ev.animationName==='spOut')kill()});
+ setTimeout(kill,3500);
+}
+window.fxBadge=function(kind,text){
+ if(RM())return false;
+ let c=q('fxq');if(!c){c=document.createElement('div');c.id='fxq';document.body.appendChild(c)}
+ const el=document.createElement('div');el.className='fxb';el.innerHTML='<i></i><div><small>'+esc(kind)+'</small><b>'+esc(text)+'</b></div>';
+ c.appendChild(el);setTimeout(()=>el.remove(),3300);return true;
+};
 })();

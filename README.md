@@ -1,4 +1,4 @@
-# LIFE PROTOCOL — Beta 0.05
+# FORM. — SHAPE YOURSELF (Beta 0.06)
 
 Mobile-first installable web app (PWA) for real-life missions and RPG progression.
 
@@ -57,3 +57,12 @@ Open `http://localhost:8000`. Service worker and `crypto.randomUUID` need HTTPS 
 - 11 new monochrome geometric rank emblems (`crest()` in `app.js`), growing from one dot to a dotted orbit.
 - Calendar (month grid + day panel), avatars (upload, crop, WebP) and motion are kept; all animations respect Reduce Motion.
 - `figma.css` / `extras.css` merged into `style.css`; service worker cache `life-protocol-b008`.
+
+## Beta 0.06 — FORM.
+- Project renamed from LIFE PROTOCOL to **FORM. — SHAPE YOURSELF** (UI, manifest, title, splash). Storage keys `lifeProtocol` / `lifeProtocolDB` are intentionally unchanged so existing progress is kept.
+- Light / dark theme with a toggle in the header; the choice is saved (`formTheme`), the system theme is used on first launch.
+- Short splash animation (once per browser session, tap to skip), achievement / rank pop-ups, animated progress bars. Everything respects `prefers-reduced-motion`.
+- Colour system: black / white base, one blue accent, six branch colours (skills, task categories).
+- Skill tree rebuilt: 3 directions x 6 branches x 3 tiers, pan (drag) and zoom (+/-, Ctrl+wheel), branch shortcuts, detail panel with conditions and thresholds. Unlock rules and thresholds are unchanged.
+- Fixes: skill-unlock toast was overwritten by the task toast; dead code in `renderGraphs`; default avatar and image cropper ignored the theme.
+- Service worker cache `form-b009` (old `life-protocol-*` caches are removed automatically).
