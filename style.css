@@ -237,3 +237,18 @@ html.hydrating #skel{display:block;padding-top:24px}html.hydrating main{display:
 @media(hover:hover)and(prefers-reduced-motion:no-preference){.au-btn:not(:disabled):hover{transform:translateY(-2px);box-shadow:0 8px 24px -12px var(--ink);border-color:var(--ink)}.mc:hover,.rcard:hover,.nextrank:hover{transform:translateY(-2px)}.mission{transition:background .2s}.mission:hover{background:var(--bg2)}}
 @media(prefers-reduced-motion:reduce){.au-load i{width:100%}.sk::after{display:none}}
 @media(max-height:560px){.au-orbit{display:none}.au-word{font-size:44px}}
+
+/* ===== v0.09: вход по почте ===== */
+.au-or{display:flex;align-items:center;gap:12px;color:var(--mut);font:11px var(--mono);letter-spacing:.1em;text-transform:uppercase;margin:6px 0 0}
+.au-or::before,.au-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.au-tabs{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.au-tabs button{background:none;border:0;padding:10px;font:12px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+.au-tabs button.on{background:var(--ink);color:var(--bg)}
+.au-form{display:flex;flex-direction:column;gap:10px;text-align:left}.au-form .field[hidden]{display:none}
+.au-link{background:none;border:0;padding:4px;color:var(--mut);font:12px var(--mono);text-decoration:underline;align-self:center}.au-link[hidden]{display:none}
+.au-link:disabled{opacity:.5}
+.au-ok{margin:0;padding:10px 12px;border:1px solid var(--c-FITNESS);border-radius:4px;color:var(--c-FITNESS);font:12px/1.4 var(--mono);text-align:left}.au-ok[hidden]{display:none}
+.au-rect{font:700 16px var(--sans);text-align:center}
+#recForm,.au-card.rec #authForm,.au-card.rec .au-btn,.au-card.rec .au-or,.au-card.rec .au-tabs{display:none}
+.au-card.rec #recForm{display:flex}
+#auSubmit .au-spin,#recSubmit .au-spin{border-color:#fff5;border-top-color:currentColor}#auSubmit.busy .au-spin,#recSubmit.busy .au-spin{display:block}
