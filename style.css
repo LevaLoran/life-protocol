@@ -252,3 +252,16 @@ html.hydrating #skel{display:block;padding-top:24px}html.hydrating main{display:
 #recForm,.au-card.rec #authForm,.au-card.rec .au-btn,.au-card.rec .au-or,.au-card.rec .au-tabs{display:none}
 .au-card.rec #recForm{display:flex}
 #auSubmit .au-spin,#recSubmit .au-spin{border-color:#fff5;border-top-color:currentColor}#auSubmit.busy .au-spin,#recSubmit.busy .au-spin{display:block}
+
+/* ===== v0.10: синхронизация ===== */
+.syncdot{width:10px;height:10px;padding:0;margin:0 2px;border-radius:50%;border:1.5px solid var(--ink);background:var(--ink);flex:none;align-self:center;opacity:.9}
+.syncdot[hidden]{display:none}
+.syncdot[data-s=syncing],.syncdot[data-s=pending]{background:transparent}
+.syncdot[data-s=offline]{background:transparent;border-style:dashed}
+.syncdot[data-s=error]{background:var(--acc);border-color:var(--acc)}
+@media(prefers-reduced-motion:no-preference){.syncdot[data-s=syncing]{animation:sdp 1s ease-in-out infinite}@keyframes sdp{50%{opacity:.25}}}
+.syncrow{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+#syncAsk{position:fixed;inset:0;z-index:120;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.55);overflow:auto;-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.sa-box{width:min(100%,420px);background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:20px;display:flex;flex-direction:column;gap:10px}
+.sa-box h3{margin:0}.sa-box .sub{margin:0}
+.sa-l{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:13px}.sa-l span{color:var(--mut);font-family:var(--mono);font-size:12px}

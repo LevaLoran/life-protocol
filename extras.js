@@ -209,6 +209,12 @@ window.toggleTheme=function(){
  const h=document.documentElement,n=h.dataset.theme==='dark'?'light':'dark';
  if(!RM()){h.classList.add('tswap');setTimeout(()=>h.classList.remove('tswap'),450)}
  h.dataset.theme=n;try{localStorage.setItem('formTheme',n)}catch(_){}sync();
+ try{state.theme=n;save()}catch(_){} // тема входит в синхронизируемые данные
+};
+window.applyTheme=function(n){
+ if(n!=='dark'&&n!=='light')return;
+ const h=document.documentElement;if(h.dataset.theme===n)return;
+ h.dataset.theme=n;try{localStorage.setItem('formTheme',n)}catch(_){}sync();
 };
 sync();
 const sp=q('splash');

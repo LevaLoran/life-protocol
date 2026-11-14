@@ -10,28 +10,31 @@ const C=window.FORM_CONFIG||{};
 const configured=/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)\/?$/i.test(C.supabaseUrl||'')&&String(C.supabaseAnonKey||'').length>20;
 try{localStorage.removeItem('formCfg')}catch(_){} // в 0.08 настройки можно было ввести в браузере: теперь они игнорируются
 const SITE=location.origin+location.pathname.replace(/index\.html$/,'');
-const urlErr=(()=>{try{const q=new URLSearchParams(location.search),h=new URLSearchParams(location.hash.slice(1));return q.get('error_description')||h.get('error_description')||''}catch(_){return ''}})();
-let sb=null,user=null,entered=false,checked=false,recovering=false,mode='in',lastCheck=Date.now();
+const url=(()=>{try{const q=new URLSearchParams(location.search),h=new URLSearchParams(location.hash.slice(1)),g=k=>q.get(k)||h.get(k)||'';return{err:g('error_description'),code:g('error_code'),hadCode:!!q.get('code')}}catch(_){return{err:'',code:'',hadCode:false}}})();
+const urlErr=url.err;
+let sb=null,user=null,entered=false,checked=false,recovering=false,mode='in',lastCheck=Date.now(),resendAt=0,pendingMail='';
 const setAuth=s=>{H.dataset.auth=s};
 const EMAIL=/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 function say(t,ok){const e=$('authErr'),o=$('authOk');if(e){e.textContent=ok?'':(t||'');e.hidden=ok||!t}if(o){o.textContent=ok?t:'';o.hidden=!ok||!t}}
 function busy(p){
   document.querySelectorAll('.au-btn').forEach(b=>{b.disabled=!!p||b.dataset.off==='1';b.classList.toggle('busy',!!p&&b.dataset.provider===p)});
-  ['auSubmit','recSubmit','auForgot'].forEach(id=>{const b=$(id);if(b){b.disabled=!!p||b.dataset.off==='1';b.classList.toggle('busy',p==='mail'&&id!=='auForgot')}});
+  ['auSubmit','recSubmit','auForgot','auResend'].forEach(id=>{const b=$(id);if(b){b.disabled=!!p||b.dataset.off==='1';b.classList.toggle('busy',p==='mail'&&id!=='auForgot')}});
 }
 function cleanUrl(){try{if(/[?&](code|error|error_description)=/.test(location.search)||/access_token|error_description/.test(location.hash))history.replaceState(null,'',location.pathname)}catch(_){}}
 function human(e){
   const c=e&&e.code||'',m=String(e&&e.message||'');
   if(e&&(e.name==='AuthRetryableFetchError'||!navigator.onLine))return 'Нет соединения. Проверьте интернет и повторите.';
   if(c==='invalid_credentials'||/invalid login/i.test(m))return 'Неверная почта или пароль.';
-  if(c==='email_not_confirmed'||/not confirmed/i.test(m))return 'Почта не подтверждена: откройте письмо со ссылкой и войдите снова.';
+  if(c==='email_not_confirmed'||/not confirmed/i.test(m))return 'Почта ещё не подтверждена: откройте письмо со ссылкой или запросите новое.';
+  if(c==='otp_expired'||/expired|invalid or has/i.test(m))return 'Ссылка устарела или уже использована. Запросите новое письмо.';
+  if(/error sending|sending (confirmation|recovery|magic)|smtp|unexpected_failure|hook/i.test(c+' '+m)||(e&&e.status>=500))return 'Не удалось отправить письмо. Проверьте адрес и повторите позже; если ошибка повторяется, сообщите владельцу приложения.';
   if(c==='user_already_exists'||/already registered/i.test(m))return 'Этот адрес уже зарегистрирован. Войдите или восстановите пароль.';
   if(c==='weak_password'||/password should/i.test(m))return 'Пароль слишком простой: минимум 8 символов, лучше с цифрами и разными буквами.';
   if(c==='same_password')return 'Новый пароль должен отличаться от старого.';
   if(c==='signup_disabled'||/signups not allowed/i.test(m))return 'Регистрация закрыта владельцем приложения.';
   if(c==='email_address_invalid')return 'Некорректный адрес почты.';
   if(/rate limit|too many|over_.*limit/i.test(c+m)||e&&e.status===429)return 'Слишком много попыток. Подождите немного и повторите.';
-  if(/not authorized/i.test(m))return 'Письмо не отправлено: на проекте не настроена почта для рассылки (см. README).';
+  if(/not authorized/i.test(m))return 'Не удалось отправить письмо: на сервере не настроена почтовая рассылка (владельцу: см. README, раздел «Письма»).';
   return 'Не удалось выполнить действие. Попробуйте ещё раз.';
 }
 function showLogin(problem){
@@ -41,6 +44,7 @@ function showLogin(problem){
   ['auEmail','auPass','auPass2'].forEach(id=>{const i=$(id);if(i)i.disabled=off});
   if(problem==='config')say('Вход временно недоступен: приложение ещё не подключено к серверу. Подключение выполняет владелец.');
   else if(problem==='lib')say('Не удалось загрузить модуль входа. Проверьте интернет и обновите страницу.');
+  else if(url.code==='otp_expired'||/expired/i.test(urlErr))say('Ссылка устарела или уже использована. Введите почту и нажмите «Отправить письмо ещё раз».');
   else if(urlErr)say('Вход не выполнен: '+urlErr);
   else say('');
 }
@@ -80,6 +84,7 @@ async function check(){
     try{await sb.auth.signOut({scope:'local'})}catch(_){}
   }
   checked=true;showLogin();
+  if(url.hadCode&&!urlErr)say('Если вы переходили по ссылке из письма, почта подтверждена. Теперь войдите, указав e-mail и пароль.',true);
 }
 
 async function github(){
@@ -107,13 +112,29 @@ async function submitMail(ev){
       if(error)throw error;
       if(data.session){busy(null);return enter(data.user)} // подтверждение почты отключено: аккаунт сразу готов
       if(data.user&&Array.isArray(data.user.identities)&&!data.user.identities.length){busy(null);return say('Этот адрес уже зарегистрирован. Войдите или восстановите пароль.')}
-      busy(null);setMode('in');say('Письмо с подтверждением отправлено на '+email+'. Откройте ссылку в письме, затем войдите.',true);
+      busy(null);setMode('in');pendingMail=email;showResend(true);say('Письмо с подтверждением отправлено на '+email+'. Откройте ссылку из письма (проверьте и «Спам»), затем войдите.',true);
     }else{
       const {data,error}=await sb.auth.signInWithPassword({email,password:pass});
       if(error)throw error;
       busy(null);enter(data.user);
     }
-  }catch(e){busy(null);say(human(e))}
+  }catch(e){busy(null);const nc=e&&(e.code==='email_not_confirmed'||/not confirmed/i.test(String(e.message||'')));if(nc){pendingMail=email;showResend(true)}say(human(e))}
+}
+
+function showResend(on){const b=$('auResend');if(b)b.hidden=!on}
+async function resend(){
+  if(!sb)return;
+  const email=($('auEmail').value.trim()||pendingMail);
+  if(!EMAIL.test(email))return say('Введите адрес почты, на который нужно отправить письмо.');
+  const wait=60000-(Date.now()-resendAt);
+  if(wait>0)return say('Подождите '+Math.ceil(wait/1000)+' с перед повторной отправкой.');
+  say('');busy('mail');
+  try{
+    const {error}=await sb.auth.resend({type:'signup',email,options:{emailRedirectTo:SITE}});
+    if(error)throw error;
+    resendAt=Date.now();say('Письмо отправлено повторно на '+email+'. Ссылка действует ограниченное время.',true);
+  }catch(e){say(human(e))}
+  busy(null);
 }
 
 let forgotAt=0;
@@ -150,6 +171,8 @@ async function enter(u){
   H.classList.add('hydrating');setAuth('in');renderAccount();
   const t0=Date.now();
   try{await window.__boot()}catch(e){console.error(e)}
+  try{await Promise.race([window.FormSync.start(sb,u),new Promise(r=>setTimeout(r,6000))])}catch(e){console.error(e)}
+  try{const ca=u.email_confirmed_at&&Date.now()-new Date(u.email_confirmed_at).getTime()<10*60000;if(ca&&url.hadCode&&(u.app_metadata||{}).provider==='email')toast('Почта подтверждена')}catch(_){}
   setTimeout(()=>H.classList.remove('hydrating'),RM()?0:Math.max(0,420-(Date.now()-t0)));
 }
 
@@ -178,6 +201,7 @@ window.formSb=()=>sb;
 window.formSignOut=async function(){
   try{save()}catch(_){}
   const b=$('signOutBtn');if(b){b.disabled=true;b.textContent='…'}
+  try{await window.FormSync.flush()}catch(_){} // последние изменения уходят в облако до выхода
   try{await sb.auth.signOut()}catch(_){try{await sb.auth.signOut({scope:'local'})}catch(__){}}
   location.replace(location.pathname);
 };
@@ -191,6 +215,7 @@ document.addEventListener('visibilitychange',async()=>{
 window.addEventListener('pageshow',e=>{if(e.persisted)busy(null)});
 const gh=document.querySelector('.au-btn[data-provider=github]');if(gh)gh.addEventListener('click',github);
 document.querySelectorAll('.au-tabs button').forEach(b=>b.addEventListener('click',()=>setMode(b.dataset.mode)));
+const rs=$('auResend');if(rs)rs.addEventListener('click',resend);
 $('authForm').addEventListener('submit',submitMail);$('recForm').addEventListener('submit',submitRecovery);$('auForgot').addEventListener('click',forgot);
 setMode('in');
 check().catch(e=>{console.error(e);showLogin('lib')});

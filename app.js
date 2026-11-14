@@ -86,6 +86,7 @@ function normalize(raw){
  if(Array.isArray(d.treeSeen))s.treeSeen=d.treeSeen.filter(x=>typeof x==='string');else delete s.treeSeen;
  if(!Number.isFinite(+s.lastBackup))delete s.lastBackup;
  s.lastRank=rankIndex(s.xp);
+ if(d.theme==='dark'||d.theme==='light')s.theme=d.theme;else delete s.theme;
  s.days={};if(d.days&&typeof d.days==='object')Object.keys(d.days).forEach(k=>{const p=d.days[k]&&+d.days[k].p;if(DATE_RE.test(k)&&Number.isFinite(p)&&p>=0&&p<=50)s.days[k]={p:Math.floor(p)}});
  s.medalDates={};if(d.medalDates&&typeof d.medalDates==='object')names.forEach(n=>{const o=Object.keys(medalMig).find(k=>medalMig[k]===n&&d.medalDates[k]),v=d.medalDates[n]||(o&&d.medalDates[o]);if(DATE_RE.test(String(v)))s.medalDates[n]=v});
  const ao=d.avatarOrig;if(ao&&typeof ao==='object'&&typeof ao.path==='string'&&ao.path.length<200)s.avatarOrig={path:ao.path,name:String(ao.name||'').slice(0,100),size:Math.max(0,+ao.size||0),at:+ao.at||0};else delete s.avatarOrig;
@@ -93,7 +94,7 @@ function normalize(raw){
  return s;
 }
 let state=load();
-const APP_VERSION='Бета 0.09',DB_NAME='lifeProtocolDB',DB_VER=1;
+const APP_VERSION='Бета 0.10',DB_NAME='lifeProtocolDB',DB_VER=1;
 let dbp=null,ready=false,idbOk=true;
 const getDb=()=>dbp||(dbp=new Promise((res,rej)=>{const r=indexedDB.open(DB_NAME,DB_VER);r.onupgradeneeded=()=>{if(!r.result.objectStoreNames.contains('kv'))r.result.createObjectStore('kv')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}));
 const idbGet=k=>getDb().then(db=>new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error)}));
@@ -110,7 +111,16 @@ function save(){
  state.updated=Date.now();
  try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}catch(e){}
  if(idbOk)idbSet(IDB_KEY,state).catch(()=>{idbOk=false;toast('IndexedDB недоступна: данные в localStorage')});
+ if(window.FormSync)FormSync.changed(); // изменения уходят в облако автоматически
 }
+/* Применить данные, пришедшие из облака (без повторной отправки) */
+window.formApplyState=function(d){
+ state=normalize(d);
+ try{localStorage.setItem(STORAGE_KEY,JSON.stringify(state))}catch(e){}
+ if(idbOk)idbSet(IDB_KEY,state).catch(()=>{});
+ if(state.theme&&window.applyTheme)applyTheme(state.theme);
+ render();generateBriefing();
+};
 /* Данные привязаны к аккаунту: первый вошедший на устройстве получает прежний локальный прогресс, остальные — свои хранилища */
 window.formSetUser=function(u){
  let o=null;try{o=localStorage.getItem('formOwner')}catch(e){}
@@ -126,6 +136,7 @@ async function boot(){
  // миграция: берём самую свежую копию (IndexedDB или localStorage Beta 0.01); ничего не удаляем
  const c=[a,b].filter(x=>x&&typeof x==='object').sort((x,y)=>(y.updated||0)-(x.updated||0)||(y.xp||0)-(x.xp||0));
  state=normalize(c[0]||null);ready=true;
+ if(state.theme){if(window.applyTheme)applyTheme(state.theme)}else state.theme=document.documentElement.dataset.theme==='dark'?'dark':'light';
  try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist()}catch(e){}
  checkMedals();render();generateBriefing();
 }
